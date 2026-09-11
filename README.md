@@ -56,6 +56,7 @@ The sanitized reference run used an explicitly configured direct cloud connectio
 | `generators/` | Deterministic synthetic CSV generation |
 | `snowflake_source/` | Schema/table DDL, least-privilege roles, loader, and schema-scoped cleanup |
 | `infra/azure/snowflake-private-endpoint/` | Optional Terraform for the Azure private endpoint and dedicated Fabric gateway subnet |
+| `infra/azure/snowflake-private-endpoint-bicep/` | Equivalent Azure-native Bicep deployment with optional delete locks |
 | `infra/fabric/` | Fabric REST VNet gateway, private connection, workspace, mirror, Git integration, and capacity controls |
 | `infra/governance/` | Catalog descriptions/search, domain assignment, and OneLake access tooling |
 | `notebooks/`, `pipelines/`, `warehouse/` | Medallion processing, orchestration, serving, and security contracts |

@@ -12,6 +12,8 @@ Snowflake native password authentication is supported for compatibility but is n
 
 Customer deployments default to Snowflake Azure Private Link through a Fabric VNet data gateway. Keep the Snowflake PrivateLink configuration response, private service alias, endpoint IDs/IPs, private DNS details, and gateway ID outside Git. Use `ACCOUNTADMIN` only for administrator-controlled PrivateLink discovery and authorization; the Fabric runtime principal uses the dedicated least-privilege mirror role.
 
+Use only an ignored local `terraform.tfvars` or `main.bicepparam` for the private endpoint deployment. The Bicep alias parameter is marked secure, and the example files contain placeholders only. Never put the Azure federated token used by `SYSTEM$AUTHORIZE_PRIVATELINK` in either IaC system or Azure deployment history.
+
 The setup and cleanup tools never create or drop the customer database or warehouse. Cleanup is restricted to the configured dedicated schema and, only with an additional flag, the dedicated POC roles.
 
 ## Public-release gate

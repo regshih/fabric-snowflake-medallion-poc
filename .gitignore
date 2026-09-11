@@ -42,6 +42,8 @@ terraform.tfstate*
 *.tfvars
 !*.tfvars.example
 .terraform/
+*.bicepparam
+/infra/azure/snowflake-private-endpoint-bicep/main.json
 
 # IDE / OS
 .vscode/

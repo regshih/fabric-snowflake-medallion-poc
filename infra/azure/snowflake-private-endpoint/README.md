@@ -2,6 +2,8 @@
 
 This Terraform root creates only the Azure side of a Snowflake private endpoint and, optionally, a dedicated subnet delegated for a Fabric VNet data gateway. It does not create a Snowflake account, database, warehouse, Fabric gateway, or Fabric capacity.
 
+Customers that standardize on Azure-native infrastructure as code can use the equivalent [Bicep deployment](../snowflake-private-endpoint-bicep/README.md).
+
 Use it only after the customer's Snowflake, Azure networking, security, and Fabric administrators approve the target resource group, VNet, subnets, DNS design, and Terraform state location.
 
 ## Prerequisites

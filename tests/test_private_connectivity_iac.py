@@ -2,6 +2,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 IAC = ROOT / "infra" / "azure" / "snowflake-private-endpoint"
+BICEP_IAC = ROOT / "infra" / "azure" / "snowflake-private-endpoint-bicep"
 
 
 def test_private_endpoint_uses_snowflake_alias_and_manual_approval():
@@ -26,3 +27,30 @@ def test_examples_contain_placeholders_only():
     assert "<azure-subscription-id>" in example
     assert "<privatelink-pls-id-from-snowflake>" in example
     assert "SYSTEM$GET_PRIVATELINK_CONFIG" in (IAC / "README.md").read_text(encoding="utf-8")
+
+
+def test_bicep_uses_manual_snowflake_connection_and_fabric_delegation():
+    main = (BICEP_IAC / "main.bicep").read_text(encoding="utf-8")
+    assert "Microsoft.Network/privateEndpoints@2024-07-01" in main
+    assert "manualPrivateLinkServiceConnections" in main
+    assert "snowflakePrivateLinkServiceAliasOrResourceId" in main
+    assert "Microsoft.PowerPlatform/vnetaccesslinks" in main
+    assert "Microsoft.Authorization/locks@2020-05-01" in main
+
+
+def test_bicep_does_not_create_shared_or_snowflake_resources():
+    main = (BICEP_IAC / "main.bicep").read_text(encoding="utf-8")
+    assert "Microsoft.Resources/resourceGroups" not in main
+    assert "snowflake_database" not in main
+    assert "snowflake_warehouse" not in main
+    assert "resource existingVnet" in main
+    assert " existing = if " in main
+
+
+def test_bicep_example_contains_placeholders_only():
+    example = (BICEP_IAC / "main.bicepparam.example").read_text(encoding="utf-8")
+    assert "<azure-subscription-id>" in example
+    assert "<privatelink-pls-id-from-SYSTEM$GET_PRIVATELINK_CONFIG>" in example
+    assert "SYSTEM$AUTHORIZE_PRIVATELINK" in (BICEP_IAC / "README.md").read_text(
+        encoding="utf-8"
+    )

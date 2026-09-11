@@ -1,0 +1,19 @@
+using './main.bicep'
+
+param privateEndpointSubnetId = '/subscriptions/<azure-subscription-id>/resourceGroups/<network-resource-group>/providers/Microsoft.Network/virtualNetworks/<vnet-name>/subnets/<private-endpoint-subnet-name>'
+param snowflakePrivateLinkServiceAliasOrResourceId = '<privatelink-pls-id-from-SYSTEM$GET_PRIVATELINK_CONFIG>'
+param privateEndpointName = 'pe-snowflake-fabric-poc'
+
+// Leave false when the network team supplies an existing dedicated gateway subnet.
+param createFabricGatewaySubnet = false
+param virtualNetworkName = '<existing-vnet-name>'
+param fabricGatewaySubnetName = 'snet-fabric-vnet-gateway'
+param fabricGatewaySubnetAddressPrefixes = []
+
+// Azure locks are the Bicep equivalent of the Terraform deletion safeguard.
+param createDeleteLocks = true
+
+param tags = {
+  workload: 'fabric-snowflake-medallion-poc'
+  environment: 'poc'
+}

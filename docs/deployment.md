@@ -16,9 +16,9 @@ This sequence assumes the customer already operates Snowflake on Microsoft Azure
 ## 2. Prepare Snowflake PrivateLink and Azure networking
 
 1. In an approved Snowflake administrator session, run `SELECT SYSTEM$GET_PRIVATELINK_CONFIG();`. Only `ACCOUNTADMIN` can obtain this account-level configuration. Treat the complete result as private environment inventory.
-2. Give the `privatelink-pls-id` value to the Azure network deployment through an ignored variable or secret workflow. The optional [`infra/azure/snowflake-private-endpoint`](../infra/azure/snowflake-private-endpoint/README.md) Terraform root can create the Azure private endpoint and, when authorized, a separate Fabric-gateway subnet.
-3. Review and apply Terraform through the customer's approved remote-state and change-management process. Do not commit state, plan files, or real variables.
-4. Have the Snowflake administrator authorize the Azure private endpoint using a narrowly scoped Azure token obtained outside Terraform. Do not store the token in state, Git, command history, or logs.
+2. Give the `privatelink-pls-id` value to the Azure network deployment through an ignored variable or secret workflow. Choose either the optional [Terraform root](../infra/azure/snowflake-private-endpoint/README.md) or the equivalent [Azure-native Bicep deployment](../infra/azure/snowflake-private-endpoint-bicep/README.md). Each creates the Azure private endpoint and, when authorized, a separate Fabric-gateway subnet.
+3. Review Terraform `plan` or Azure deployment `what-if` output through the customer's approved change-management process, then deploy only the approved changes. Do not commit state, plan files, generated ARM JSON, deployment output, or real variables.
+4. Have the Snowflake administrator authorize the Azure private endpoint using a narrowly scoped Azure token obtained outside IaC. Do not store the token in Terraform state, Bicep parameters, Azure deployment history, Git, command history, or logs.
 5. Configure private DNS for both the Snowflake account hostname and OCSP hostname returned by Snowflake. Validate resolution and TLS connectivity from the VNet with the customer's approved tools, including SnowCD where available.
 
 The private endpoint subnet and Fabric gateway subnet are different subnets. The gateway subnet must be dedicated and delegated to `Microsoft.PowerPlatform/vnetaccesslinks`. Register the `Microsoft.PowerPlatform` resource provider before gateway creation.
@@ -98,6 +98,8 @@ The helper sends the encrypted PKCS#8 key to Fabric over TLS for its live connec
 ## 8. Create the workspace and selective mirror
 
 Set an existing `FABRIC_CAPACITY_ID` or `FABRIC_CAPACITY_NAME`, configure `FABRIC_WORKSPACE_NAME`, and run:
+
+The reference environment uses `fabric-snowflake-medallion-poc`; choose a customer-approved dedicated name when adapting the repository.
 
 ```powershell
 python -m infra.fabric.source_mirror

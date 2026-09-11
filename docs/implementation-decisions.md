@@ -11,6 +11,7 @@
 | Capacity | Reuse an existing capacity; dedicated workspace | Cost-aware isolation without provisioning another capacity |
 | Snowflake compute | Reuse an existing customer-approved warehouse | Preserves enterprise ownership, sizing, monitoring, and resource controls |
 | Network | Snowflake PrivateLink through a Fabric VNet data gateway by default | Keeps customer data traffic on the approved private path |
+| Azure network IaC | Equivalent Terraform and Bicep options | Supports customer standards without changing the approved resource scope |
 | Authentication | Interactive SSO by default; external encrypted key pair for automation | Avoids committed long-lived secrets |
 | Source loading | CSV generation plus staging-table `MERGE ALL BY NAME` | Deterministic, retry-safe, inspectable |
 | Transformation | Reuse Fabric Spark Silver/Gold notebooks | Preserves proven reference logic |

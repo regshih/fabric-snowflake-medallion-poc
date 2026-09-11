@@ -78,6 +78,7 @@ Deliver a working, evidence-backed POC where permissions and environment allow. 
 6. Confirm whether the intended Fabric capacity is active and whether reuse can affect other workspaces.
 7. Verify current product behavior from official Microsoft Fabric and Snowflake documentation before changing mirror definitions, authentication, networking, or supported-object claims.
 8. Record inferred non-secret decisions in `docs/implementation-decisions.md`.
+9. For the Azure Snowflake private endpoint, use either the provided Terraform root or the equivalent Azure-native Bicep deployment according to the customer's IaC standard. Run `terraform plan` or Azure deployment `what-if` and obtain customer approval before applying it.
 
 ## Required source implementation
 

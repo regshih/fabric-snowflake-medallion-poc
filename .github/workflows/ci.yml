@@ -31,3 +31,5 @@ jobs:
       - run: terraform fmt -check -recursive infra/azure
       - run: terraform -chdir=infra/azure/snowflake-private-endpoint init -backend=false
       - run: terraform -chdir=infra/azure/snowflake-private-endpoint validate
+      - name: Validate Bicep
+        run: az bicep build --file infra/azure/snowflake-private-endpoint-bicep/main.bicep --stdout > /dev/null
