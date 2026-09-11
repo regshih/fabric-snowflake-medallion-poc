@@ -6,15 +6,22 @@ Snowflake managed tables are continuously mirrored into OneLake. That mirrored d
 
 ```mermaid
 flowchart LR
-  subgraph Source[Snowflake hosted on Microsoft Azure]
-    WH[Cost-controlled virtual warehouse]
-    DB[(FABRIC_SNOWFLAKE_POC)]
-    SCH[BANKING_SOURCE schema]
+  subgraph Source[Existing enterprise Snowflake on Azure]
+    WH[Customer-approved virtual warehouse]
+    DB[(Existing customer database)]
+    SCH[Dedicated POC schema]
     TX[Transactions, risk, merchants]
     DG[Sessions, devices, alerts]
     WH --> DB --> SCH
     SCH --> TX
     SCH --> DG
+  end
+
+  subgraph Network[Private connectivity]
+    PE[Azure Private Endpoint]
+    DNS[Customer private DNS]
+    GW[Fabric VNet data gateway]
+    PE --> DNS --> GW
   end
 
   subgraph Bronze[Fabric source-aligned Bronze]
@@ -52,8 +59,9 @@ flowchart LR
     GIT -. version controls .-> PIPE
   end
 
-  TX == continuous physical replication ==> MIR
-  DG == continuous physical replication ==> MIR
+  TX == continuous physical replication ==> PE
+  DG == continuous physical replication ==> PE
+  GW ==> CONN
   DELTA --> VAL
 ```
 
@@ -95,15 +103,15 @@ The suspicious-transaction drill-through combines a high-risk transaction, devic
 
 ## Security boundaries
 
-1. Snowflake roles constrain loader and mirror access to the POC warehouse, database, schema, and six tables.
+1. Snowflake roles constrain loader and mirror access to the approved existing warehouse, dedicated POC schema, and six tables. Setup and cleanup never create or drop the customer database or warehouse.
 2. The Fabric connection owns its credential; the repository stores only a connection identifier placeholder.
 3. Snowflake row-access, masking, and column policies do not propagate. Fabric workspace/item permissions, OneLake security, semantic-model security, and Warehouse RLS/DDM are configured independently.
 4. Git contains source code and placeholders only. `.env`, keys, data, logs, caches, IDs, and live evidence are ignored or sanitized.
 
 ## Network and region boundary
 
-Direct connectivity is appropriate only when allowed by the customer's Snowflake network policy. Private Snowflake access uses a Fabric VNet data gateway or on-premises data gateway. The Snowflake Azure region and Fabric capacity region should match when practical to reduce latency and egress charges.
+The customer deployment defaults to Snowflake Azure Private Link through a Fabric VNet data gateway. It uses a dedicated delegated gateway subnet, a separate private-endpoint subnet, and customer-managed private DNS for the account and OCSP hostnames. Direct cloud connectivity is an explicit lab exception. The Snowflake Azure region and Fabric capacity region should match when practical to reduce latency and egress charges.
 
 ## Deployment boundary
 
-Local tests prove generators, validators, definitions, pipeline binding, notebook syntax/contracts, governance helpers, and secret controls. They do not prove Snowflake connectivity, replication latency, Fabric Spark execution, Warehouse security, or Direct Lake behavior. Those claims require the sanitized live evidence checklist in `docs/validation.md`.
+Local tests prove generators, validators, definitions, pipeline binding, notebook syntax/contracts, governance helpers, and secret controls. The sanitized reference run proves the data and Fabric path over direct cloud connectivity. PrivateLink authorization, private DNS, VNet gateway routing, and policy enforcement must be validated in each customer environment using `docs/validation.md`.

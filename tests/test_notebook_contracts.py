@@ -2,7 +2,6 @@ import ast
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).parents[1]
 NOTEBOOKS = ROOT / "notebooks"
 NAMES = {
@@ -37,7 +36,7 @@ def test_notebooks_include_fabric_kernel_and_cell_metadata():
 
 
 def test_notebooks_use_deploy_time_parameters_and_no_embedded_guids():
-    guid = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b", re.I)
+    guid = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b", re.IGNORECASE)
     for name in NAMES:
         text = source(name)
         assert "workspace_id = \"\"" in text

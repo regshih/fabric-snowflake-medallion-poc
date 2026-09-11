@@ -8,29 +8,34 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SELF = Path(__file__).resolve()
 DOCUMENTED_EXAMPLE = (ROOT / "SECURITY.md").resolve()
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".pyc"}
 PATTERNS = {
-    "azure-storage-key": re.compile(r"AccountKey=[A-Za-z0-9+/]{32,}={0,2}", re.I),
-    "sas-signature": re.compile(r"(?:[?&;]|^)sig=[A-Za-z0-9%+/]{20,}", re.I),
-    "github-token": re.compile(r"\bgh(?:p|o|u|s|r)_[A-Za-z0-9]{20,}\b"),
-    "databricks-token": re.compile(r"\bdapi[a-f0-9]{20,}\b", re.I),
+    "azure-storage-key": re.compile(r"AccountKey=[A-Za-z0-9+/]{32,}={0,2}", re.IGNORECASE),
+    "sas-signature": re.compile(r"(?:[?&;]|^)sig=[A-Za-z0-9%+/]{20,}", re.IGNORECASE),
+    "github-token": re.compile(r"(?:\bgh(?:p|o|u|s|r)_[A-Za-z0-9]{20,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b)"),
+    "databricks-token": re.compile(r"\bdapi[a-f0-9]{20,}\b", re.IGNORECASE),
     "jwt": re.compile(r"\beyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{8,}\b"),
-    "private-key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    "private-key": re.compile(r"-----BEGIN (?:ENCRYPTED |RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     "literal-secret": re.compile(
         r"(?:client[_-]?secret|password|pwd|access[_-]?token)\s*[:=]\s*[\"'][^<$%{][^\"'\r\n]{7,}[\"']",
-        re.I,
+        re.IGNORECASE,
     ),
-    "literal-bearer": re.compile(r"Authorization\s*[:=]\s*[\"']Bearer\s+[A-Za-z0-9._~+/-]{16,}", re.I),
+    "literal-bearer": re.compile(r"Authorization\s*[:=]\s*[\"']Bearer\s+[A-Za-z0-9._~+/-]{16,}", re.IGNORECASE),
 }
+SAFE_TEST_LITERALS = {"github_pat_synthetic_test_value"}
 
 
 def git(*args: str) -> str:
     result = subprocess.run(
-        ["git", "-C", str(ROOT), *args], capture_output=True, text=True, encoding="utf-8", errors="replace"
+        ["git", "-C", str(ROOT), *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
     )
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or f"git {' '.join(args)} failed")
@@ -40,8 +45,11 @@ def git(*args: str) -> str:
 def scan_text(label: str, text: str) -> list[str]:
     findings: list[str] = []
     for line_number, line in enumerate(text.splitlines(), 1):
+        candidate = line
+        for safe_literal in SAFE_TEST_LITERALS:
+            candidate = candidate.replace(safe_literal, "<known-test-fixture>")
         for name, pattern in PATTERNS.items():
-            if pattern.search(line):
+            if pattern.search(candidate):
                 findings.append(f"{label}:{line_number}: {name}")
     return findings
 
@@ -74,7 +82,9 @@ def scan_history() -> list[str]:
             if path.suffix.lower() in SKIP_SUFFIXES or name in {"tools/security_scan.py", "SECURITY.md"}:
                 continue
             result = subprocess.run(
-                ["git", "-C", str(ROOT), "show", f"{commit}:{name}"], capture_output=True
+                ["git", "-C", str(ROOT), "show", f"{commit}:{name}"],
+                capture_output=True,
+                check=False,
             )
             if result.returncode or b"\0" in result.stdout[:8192]:
                 continue

@@ -15,7 +15,7 @@ Official references:
 
 ## POC object selection
 
-The checked-in definition selects only six managed tables from `BANKING_SOURCE`:
+The checked-in definition selects only six managed tables from the configured dedicated POC schema:
 
 | Snowflake table | Analytical purpose |
 |---|---|
@@ -42,7 +42,9 @@ Local loaders default to `externalbrowser`. If a customer chooses key-pair authe
 
 ## Networking
 
-For a publicly reachable Snowflake endpoint allowed by the account network policy, the Fabric cloud connection can connect directly. For private connectivity, use a Fabric virtual network data gateway or an on-premises data gateway with network access to the Snowflake private endpoint. Direct Private Link from the Fabric workspace to Snowflake is not currently supported.
+The customer default is Snowflake Azure Private Link reached through a Fabric VNet data gateway. Azure Private Link requires Snowflake Business Critical Edition or higher. Use separate private-endpoint and dedicated Fabric-gateway subnets, and configure private DNS for the Snowflake account and OCSP hostnames. Direct Private Link from the Fabric workspace to Snowflake is not currently supported.
+
+A direct `ShareableCloud` connection is retained only as an explicitly configured maintainer-lab option when the organization's network policy allows it; it is not the enterprise customer default.
 
 The Snowflake account should be hosted on Azure in the same region as the Fabric capacity where practical. Cross-region placement can add latency and egress charges.
 
@@ -59,4 +61,4 @@ The Snowflake account should be hosted on Azure in the same region as the Fabric
 
 ## Cost controls
 
-Start with the six selected tables and the X-Small, 60-second-auto-suspend warehouse in the setup template. Reusing the writer warehouse can reduce wake-up overhead, while a dedicated warehouse improves budget isolation. Monitor warehouse credits, Fabric capacity utilization, and unexpected initial-copy/reseed activity. Stopping and restarting mirroring solely to save idle compute can be counterproductive because restart triggers a reseed.
+Mirror only the six selected tables and use the existing customer-approved warehouse. Coordinate sizing, auto-suspend, and resource-monitor policy with its owner. Monitor warehouse credits, Fabric capacity utilization, and unexpected initial-copy/reseed activity. Stopping and restarting mirroring solely to save idle compute can be counterproductive because restart triggers a reseed.

@@ -7,7 +7,15 @@ from validation.validate_snowflake import validate_files
 def test_generator_is_deterministic_and_referentially_valid(tmp_path):
     first = tmp_path / "first"
     second = tmp_path / "second"
-    kwargs = dict(transactions=120, customers=20, merchants=12, devices=30, sessions=40, alerts=9, seed=7)
+    kwargs = {
+        "transactions": 120,
+        "customers": 20,
+        "merchants": 12,
+        "devices": 30,
+        "sessions": 40,
+        "alerts": 9,
+        "seed": 7,
+    }
     first_manifests = generate(first, **kwargs)
     second_manifests = generate(second, **kwargs)
     assert first_manifests == second_manifests

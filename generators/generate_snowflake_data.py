@@ -12,9 +12,9 @@ import csv
 import hashlib
 import json
 import random
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Iterable, Iterator
 
 CLASSIFICATION = "SYNTHETIC_TEST_DATA"
 BASE_TIME = datetime(2026, 8, 31, 12, tzinfo=timezone.utc)

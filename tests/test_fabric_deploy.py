@@ -1,5 +1,4 @@
 import base64
-import json
 
 from infra.fabric.deploy import NOTEBOOK_NAMES, deploy
 

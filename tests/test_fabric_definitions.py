@@ -51,7 +51,7 @@ def test_pipeline_template_has_no_embedded_guids_and_binding_is_non_mutating():
     assert "{{" not in encoded
     assert "bound-workspace" in encoded
     assert json.dumps(template) == original
-    assert re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b", original, re.I) is None
+    assert re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b", original, re.IGNORECASE) is None
 
 
 def test_unknown_binding_fails_closed():

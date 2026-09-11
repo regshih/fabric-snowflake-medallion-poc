@@ -41,6 +41,7 @@ logs/
 terraform.tfstate*
 *.tfvars
 !*.tfvars.example
+.terraform/
 
 # IDE / OS
 .vscode/

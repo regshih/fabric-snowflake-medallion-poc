@@ -13,8 +13,8 @@ import copy
 import json
 import logging
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
@@ -25,6 +25,7 @@ if __package__ in {None, ""}:
     from infra.governance.common import item_by_name, workspace_id
 else:
     from infra.fabric.client import FabricApiError, FabricClient
+
     from .common import item_by_name, workspace_id
 
 ROOT = Path(__file__).resolve().parents[2]

@@ -13,6 +13,7 @@ This file contains sanitized evidence only. Do not commit account locators, tena
 | Region alignment | Snowflake Azure West US 2; Fabric West US 3 |
 | Fabric capacity SKU | F4 (existing capacity reused) |
 | Dataset parameters | 10,000 baseline transactions plus one deterministic incremental transaction |
+| Network path | Direct `ShareableCloud` reference-lab connection; customer PrivateLink/VNet gateway path not tested |
 
 ## Counts after the incremental run
 
@@ -41,3 +42,5 @@ This file contains sanitized evidence only. Do not commit account locators, tena
 - Catalog descriptions/search: item descriptions deployed; cross-workspace catalog search remains an optional tenant-governance step.
 - Fabric Git: private GitHub repository used; Fabric Git connection remains optional because it requires a customer-managed PAT/connection.
 - Working-tree and history secret scans: passed before private-repository push.
+
+This evidence validates the selective mirror and medallion implementation. It must not be presented as validation of a customer's private endpoint, DNS, gateway, network policy, or Snowflake edition.

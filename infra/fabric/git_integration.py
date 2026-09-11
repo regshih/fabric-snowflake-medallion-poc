@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 
 from infra.fabric.client import FabricApiError, FabricClient
 
-
 CONNECTION_NAME = "fabric-snowflake-medallion-poc-git-sync"
 
 

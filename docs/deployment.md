@@ -1,26 +1,41 @@
 # Deployment guide
 
-This sequence proves each boundary before downstream Fabric items are deployed. Commands contain placeholders only. Keep environment values in ignored `.env` or process variables.
+This sequence assumes the customer already operates Snowflake on Microsoft Azure and has an approved existing database and virtual warehouse. Commands contain placeholders only. Keep environment values in ignored `.env`, an approved secret manager, or process variables.
 
-## 1. Prerequisites
+## 1. Confirm ownership and prerequisites
 
-- Python 3.11 or later
-- Azure CLI authenticated to the intended tenant/subscription
-- an existing active Fabric capacity and permission to create a dedicated workspace
-- a Snowflake account hosted on Microsoft Azure
-- a Snowflake administrative role for initial setup
-- a Snowflake loader principal and a separate Fabric connection principal
-- Fabric workspace Contributor or Admin access, depending on the operation
+- Python 3.11 or later and Azure CLI authenticated to the intended tenant/subscription;
+- an active existing Fabric capacity and permission to create a dedicated workspace;
+- Snowflake on Azure, an approved existing database/warehouse, and permission to create one dedicated POC schema and roles;
+- Snowflake Business Critical Edition or higher for Azure Private Link;
+- Azure networking, Snowflake, DNS, Fabric, and security owners identified;
+- workspace Contributor/Admin and permission to create or use a Fabric VNet data gateway.
 
-Review Snowflake network policy and decide between direct connectivity and a Fabric VNet/on-premises data gateway before creating the Fabric connection.
+"Enterprise Snowflake" can describe an organization's platform without meaning Snowflake's Business Critical product edition. Confirm the actual edition before designing PrivateLink.
 
-### Optional account bootstrap
+## 2. Prepare Snowflake PrivateLink and Azure networking
 
-If the organization already has a Snowflake account and a user that can assume `ORGADMIN`, the optional [`infra/snowflake/account-bootstrap`](../infra/snowflake/account-bootstrap/README.md) Terraform module creates a dedicated Standard-edition account in Snowflake's `AZURE_WESTUS2` region. It provisions the new administrator with an RSA public key and protects the account with Terraform `prevent_destroy`.
+1. In an approved Snowflake administrator session, run `SELECT SYSTEM$GET_PRIVATELINK_CONFIG();`. Only `ACCOUNTADMIN` can obtain this account-level configuration. Treat the complete result as private environment inventory.
+2. Give the `privatelink-pls-id` value to the Azure network deployment through an ignored variable or secret workflow. The optional [`infra/azure/snowflake-private-endpoint`](../infra/azure/snowflake-private-endpoint/README.md) Terraform root can create the Azure private endpoint and, when authorized, a separate Fabric-gateway subnet.
+3. Review and apply Terraform through the customer's approved remote-state and change-management process. Do not commit state, plan files, or real variables.
+4. Have the Snowflake administrator authorize the Azure private endpoint using a narrowly scoped Azure token obtained outside Terraform. Do not store the token in state, Git, command history, or logs.
+5. Configure private DNS for both the Snowflake account hostname and OCSP hostname returned by Snowflake. Validate resolution and TLS connectivity from the VNet with the customer's approved tools, including SnowCD where available.
 
-This module cannot create an organization's first Snowflake account. Initial account enrollment requires Snowflake signup or a commercial agreement. The Microsoft Marketplace Snowflake offer is intentionally not automated here: its currently active public plans are commercial annual/multi-year offers that require legal and cost review, followed by publisher activation. An Azure Marketplace `Microsoft.SaaS/resources` deployment by itself does not create a usable Snowflake account.
+The private endpoint subnet and Fabric gateway subnet are different subnets. The gateway subnet must be dedicated and delegated to `Microsoft.PowerPlatform/vnetaccesslinks`. Register the `Microsoft.PowerPlatform` resource provider before gateway creation.
 
-## 2. Local installation and validation
+## 3. Create the Fabric VNet data gateway
+
+In Fabric **Manage connections and gateways**, create a VNet data gateway using the approved subscription, VNet, dedicated delegated subnet, region, and capacity. As an alternative, after filling the `FABRIC_VNET_*` values in ignored `.env`, run the idempotent REST helper:
+
+```powershell
+python -m infra.fabric.vnet_gateway
+```
+
+The helper creates one auto-sleeping gateway only when no same-named gateway exists; it fails closed on VNet or capacity drift. Creation requires the Fabric `Gateway.ReadWrite.All` delegated scope and the documented Azure permissions on the VNet/subnet. Record the returned gateway ID only in ignored `.env` as `FABRIC_SNOWFLAKE_GATEWAY_ID`.
+
+Invoking gateway creation remains a customer control-plane decision because tenant permissions, regional availability, subnet policy, capacity cost, and organizational approvals cannot safely be inferred by this repository.
+
+## 4. Install and validate locally
 
 ```powershell
 python -m venv .venv
@@ -31,30 +46,25 @@ az login
 python -m pytest -q
 ```
 
-Populate the ignored `.env` with identifiers. Use `externalbrowser` for interactive Snowflake SSO or point to an encrypted private key stored outside the repository. Never write a private key, passphrase, password, token, or Fabric connection credential into a tracked file.
+Set `SNOWFLAKE_DATABASE` and `SNOWFLAKE_WAREHOUSE` to existing approved objects; there are intentionally no defaults. Set `SNOWFLAKE_ACCOUNT` for connector login and `FABRIC_SNOWFLAKE_SERVER` to the `privatelink-account-url` hostname for the Fabric connection. Never add these customer values to tracked files.
 
-## 3. Configure Snowflake
+Use `externalbrowser` for interactive Snowflake SSO or an encrypted private key stored outside the repository. A key passphrase can be provided from a protected file through `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_FILE`.
 
-Review the rendered setup SQL before applying it:
+## 5. Create only the POC schema objects
+
+Render and review the setup contract:
 
 ```powershell
 New-Item -ItemType Directory -Force output | Out-Null
 python -m snowflake_source.setup > output\rendered-setup.sql
-```
-
-`output/rendered-setup.sql` is ignored local output. It creates an X-Small auto-suspending warehouse, POC database/schema, six managed tables, and dedicated loader/mirror roles.
-
-Set `SNOWFLAKE_SETUP_ROLE` locally to an appropriately privileged current Snowflake role, then apply after review:
-
-```powershell
 python -m snowflake_source.setup --apply
 ```
 
-In a private working copy of `snowflake_source/sql/10_assign_roles.template.sql`, assign the two roles to the actual principals. Do not grant `ACCOUNTADMIN` or broad database ownership to the Fabric connection to bypass a permissions problem.
+The apply path first verifies that the configured database and warehouse already exist. It also refuses to reuse a same-named schema or role unless its comment identifies an earlier run of this POC. It creates only the dedicated schema, six managed synthetic tables, change-tracking settings, and least-privilege loader/mirror roles. It never creates, alters, resizes, suspends, resumes, or drops the customer database or warehouse.
 
-## 4. Generate, validate, and load synthetic data
+Assign the two roles to actual principals from a private working copy of `snowflake_source/sql/10_assign_roles.template.sql`. Never grant `ACCOUNTADMIN`, database ownership, or access to unrelated schemas to solve a connection issue.
 
-The default dataset is intentionally modest: 10,000 transactions/scores, 300 merchants, 1,500 sessions, 375 devices, and 150 alerts.
+## 6. Generate, validate, and load synthetic data
 
 ```powershell
 python generators\generate_snowflake_data.py
@@ -63,76 +73,56 @@ python -m snowflake_source.load --batch initial
 python validation\validate_snowflake.py --mode live
 ```
 
-Generated data is ignored. Loading is idempotent: each CSV is inserted into a session-scoped staging table and merged into its managed target using the business key.
+Generated data is ignored. Loading uses session-scoped staging tables and keyed `MERGE` operations so retries are safe.
 
-## 5. Create the Fabric Snowflake connection
+## 7. Create the private Fabric Snowflake connection
 
-Create the cloud connection through the idempotent helper after setting the local key-pair variables documented in `.env.example`:
+Keep the defaults below in ignored `.env`:
+
+```text
+FABRIC_SNOWFLAKE_CONNECTIVITY_TYPE=VirtualNetworkGateway
+FABRIC_SNOWFLAKE_GATEWAY_ID=<customer-gateway-id>
+FABRIC_SNOWFLAKE_SERVER=<privatelink-account-url-hostname>
+```
+
+Then run:
 
 ```powershell
 python -m infra.fabric.snowflake_connection
 ```
 
-The helper sends the encrypted PKCS#8 key to Fabric over TLS for its live connection test. It never prints the key or passphrase. Put only the returned connection GUID in ignored `.env` as `FABRIC_SNOWFLAKE_CONNECTION_ID`.
+The helper fails if private mode lacks an explicit private hostname or gateway ID. If an existing connection has a different connectivity type or gateway, it also fails closed instead of silently weakening the network path. `ShareableCloud` remains an explicit maintainer-lab option and is not the customer default.
 
-Alternatively, create the connection in Fabric **Manage connections and gateways** using the exact case-sensitive server and warehouse identifiers.
+The helper sends the encrypted PKCS#8 key to Fabric over TLS for its live connection test. It never prints the key or passphrase. Keep only the returned connection GUID in ignored `.env` as `FABRIC_SNOWFLAKE_CONNECTION_ID`.
 
-Supported choices for this POC:
+## 8. Create the workspace and selective mirror
 
-- Microsoft Entra SSO for an interactive demonstration;
-- RSA key pair for a separately managed service account;
-- Snowflake native username/password only when the credential is stored in Fabric and never exported to Git.
-
-Select the VNet or on-premises gateway if the Snowflake endpoint is private. Cloud-connection credentials are sent directly to the Fabric Connections API; gateway credential wrapping is a separate flow for on-premises gateways.
-
-## 6. Create workspace and source mirror
-
-The downstream deployer expects the source mirror to exist. Set `FABRIC_CAPACITY_ID` or `FABRIC_CAPACITY_NAME` to an existing capacity and configure `FABRIC_WORKSPACE_NAME`. The mirror helper idempotently creates the dedicated workspace when absent, assigns the existing capacity, and creates/starts the selective mirror:
+Set an existing `FABRIC_CAPACITY_ID` or `FABRIC_CAPACITY_NAME`, configure `FABRIC_WORKSPACE_NAME`, and run:
 
 ```powershell
 python -m infra.fabric.source_mirror
 ```
 
-The definition mirrors exactly six tables. It fails closed if an existing item points at different source objects. Setting `FABRIC_ALLOW_SNOWFLAKE_MIRROR_RECREATE=true` authorizes replacement and a potentially expensive full reseed; review this change before using it. If tenant policy requires portal-created workspaces, create the same named workspace manually and assign the configured capacity before running the helper.
+The mirror selects exactly six tables. It fails closed if an existing item targets different source objects. `FABRIC_ALLOW_SNOWFLAKE_MIRROR_RECREATE=true` explicitly authorizes replacement and a potentially costly full reseed.
 
-Wait until all six tables complete initial copy and report healthy replication. Confirm Spark can read the case-sensitive schema/table paths.
+Wait for the initial copy to report healthy replication, then confirm Spark can read the case-sensitive schema/table paths.
 
-## 7. Deploy and run Fabric medallion items
-
-The deployment reuses the configured capacity and creates or updates `silver_lh`, `gold_lh`, `gold_wh`, seven notebooks, and `pl_snowflake_medallion`.
+## 9. Deploy and run the medallion items
 
 ```powershell
 python -m infra.fabric.deploy
 python -m infra.fabric.deploy --run --run-date 2026-09-10
 ```
 
-The second command starts billable Fabric/Snowflake work. Capture its run ID in a private evidence log, then publish only sanitized results.
+The second command starts billable customer compute. Capture only sanitized evidence. Apply the reviewed Warehouse and governance contracts using the commands in the [runbook](runbook.md).
 
-## 8. Warehouse and governance
+## 10. Evidence and publication gates
 
-Inspect the generated Warehouse contract, then apply the reviewed SQL:
-
-```powershell
-python tools\fabric_sql.py --server $env:FABRIC_SQL_ENDPOINT --database $env:FABRIC_WAREHOUSE_NAME --file warehouse\00_refresh_gold_serving.sql
-python tools\fabric_sql.py --server $env:FABRIC_SQL_ENDPOINT --database $env:FABRIC_WAREHOUSE_NAME --file warehouse\10_apply_security.sql
-python tools\fabric_sql.py --server $env:FABRIC_SQL_ENDPOINT --database $env:FABRIC_WAREHOUSE_NAME --file warehouse\20_validate_security.sql
-python -m infra.governance.catalog_setup
-python -m infra.governance.catalog_setup --apply
-python -m infra.governance.catalog_search --search snowflake
-```
-
-Use a private copy of `warehouse/configure_risk_investigator.template.sql` to bind customer principals. Do not commit their identities.
-
-## 9. Optional Git integration
-
-Create the GitHub repository only after tests and both secret scans pass. Fabric Git supports a subset of item types; do not claim unsupported items are synchronized.
+Complete [validation.md](validation.md), including PrivateLink authorization, DNS, VNet gateway, mirror health, source/Silver/Gold counts, incremental propagation, Warehouse security, and absence of unexpected reseed.
 
 ```powershell
-.\tools\connect-fabric-git.ps1
+python tools\security_scan.py --working-tree --git-history
+git status --short
 ```
 
-The helper reads workspace/repository values from the local environment and removes the PAT from the process after use. Prefer a fine-grained, short-lived token with only the permissions required for initial connection.
-
-## 10. Evidence gate
-
-Complete [validation.md](validation.md) before calling the POC deployed. Required evidence includes source and mirror counts, replication health, one successful pipeline run, quarantine/reconciliation results, Gold output, Warehouse queries/security, incremental propagation, catalog discovery, and clean working-tree/history secret scans.
+Repository publication is a separate owner decision. Keep it private until the owner explicitly approves changing visibility.

@@ -4,6 +4,7 @@ import pytest
 
 from infra.fabric.git_integration import _connection_url, github_pat
 from tools.fabric_sql import split_batches
+from tools.security_scan import scan_text
 
 
 def test_split_batches_handles_go_lines_only() -> None:
@@ -37,3 +38,11 @@ def test_connection_url_reads_named_parameter() -> None:
         }
     }
     assert _connection_url(connection) == "https://github.com/example/repo"
+
+
+def test_secret_scanner_detects_encrypted_keys_and_modern_github_tokens() -> None:
+    encrypted_key = "-----BEGIN " + "ENCRYPTED PRIVATE KEY-----"
+    fine_grained_pat = "github_" + "pat_" + ("a" * 30)
+    findings = scan_text("fixture", f"{encrypted_key}\n{fine_grained_pat}")
+    assert any("private-key" in finding for finding in findings)
+    assert any("github-token" in finding for finding in findings)

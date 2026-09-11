@@ -19,13 +19,25 @@ Verify additionally:
 - the mirrored database definition selects exactly six tables and contains no credential material;
 - Snowflake identifiers reject injection characters;
 - `.env`, data, keys, caches, and logs are ignored;
-- documentation contains no claim of a live deployment before one occurs.
+- documentation distinguishes the validated direct reference path from the unvalidated customer private path.
+
+## Private connectivity gate
+
+- [ ] Snowflake is hosted on Azure and the actual product edition is Business Critical or higher.
+- [ ] `SYSTEM$GET_PRIVATELINK_CONFIG()` is obtained by an approved administrator and never committed or logged.
+- [ ] The Azure private endpoint is created in the approved subnet and authorized in Snowflake.
+- [ ] The Snowflake account and OCSP hostnames resolve to private IPs from the gateway VNet.
+- [ ] TLS connectivity succeeds from the VNet, using SnowCD or another approved test.
+- [ ] `Microsoft.PowerPlatform` is registered and the dedicated gateway subnet is delegated only to `Microsoft.PowerPlatform/vnetaccesslinks`.
+- [ ] The Fabric VNet data gateway is online in the correct region/capacity and uses the intended VNet/subnet.
+- [ ] The Fabric connection reports `VirtualNetworkGateway`, the intended gateway ID, and the private Snowflake hostname.
+- [ ] Any public endpoint access matches the customer's Snowflake and Azure network policy.
 
 ## Live Snowflake gate
 
 - [ ] Authentication succeeds with the intended non-admin runtime role.
-- [ ] Warehouse is X-Small/approved size, auto-resume enabled, and auto-suspend configured.
-- [ ] The database/schema contain exactly the intended POC objects.
+- [ ] The configured existing database and approved warehouse were verified before setup.
+- [ ] The dedicated POC schema contains exactly the intended POC objects; unrelated database schemas are unchanged.
 - [ ] All six objects are permanent managed tables.
 - [ ] Change tracking is enabled on all six tables by the setup role; the mirror role is not granted `MODIFY`.
 - [ ] `validation/validate_snowflake.py --mode live` returns positive counts.
@@ -72,4 +84,5 @@ git status --short
 - [ ] No `.env`, credentials, private keys, generated data, logs, IDs, or customer identities are tracked.
 - [ ] `docs/live-validation-results.md` contains sanitized evidence only.
 - [ ] Broken links and stale references are removed.
-- [ ] Repository visibility is confirmed before creation/push.
+- [ ] Repository remains private until its owner explicitly approves publication.
+- [ ] Cleanup dry-run contains only the dedicated schema and optional dedicated roles, never database/warehouse deletion.

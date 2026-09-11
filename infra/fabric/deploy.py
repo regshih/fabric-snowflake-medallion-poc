@@ -19,7 +19,11 @@ from dotenv import load_dotenv
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from infra.fabric.client import FabricApiError, FabricClient
-    from infra.fabric.definitions import bind_pipeline, notebook_definition, pipeline_definition
+    from infra.fabric.definitions import (
+        bind_pipeline,
+        notebook_definition,
+        pipeline_definition,
+    )
 else:
     from .client import FabricApiError, FabricClient
     from .definitions import bind_pipeline, notebook_definition, pipeline_definition

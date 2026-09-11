@@ -9,18 +9,20 @@ Copy the content below into an LLM-enabled code editor opened at the root of thi
 | Placeholder | Meaning | Safe default/behavior |
 |---|---|---|
 | `<GITHUB_OWNER>` | GitHub user or organization | Ask only if it cannot be inferred |
-| `<REPOSITORY_NAME>` | Public repository | `fabric-snowflake-medallion-poc` |
+| `<REPOSITORY_NAME>` | Repository target; keep private until owner approval | `fabric-snowflake-medallion-poc` |
 | `<FABRIC_WORKSPACE_NAME>` | Dedicated Fabric workspace | `fabric-snowflake-medallion-poc` |
 | `<FABRIC_CAPACITY_NAME>` | Existing reusable capacity | Inspect and reuse a suitable nonproduction capacity |
 | `<AZURE_SUBSCRIPTION_ID>` | Azure subscription for the Fabric capacity | Infer only from an unambiguous authenticated context; never commit |
 | `<AZURE_TENANT_ID>` | Microsoft Entra tenant | Infer only when unambiguous; never commit |
 | `<FABRIC_REGION>` | Fabric capacity region | Prefer the Snowflake Azure region |
 | `<SNOWFLAKE_ACCOUNT>` | Snowflake account identifier | Required at runtime; never commit a customer value |
-| `<SNOWFLAKE_WAREHOUSE>` | Existing or POC warehouse | `FABRIC_POC_WH` |
-| `<SNOWFLAKE_DATABASE>` | POC database | `FABRIC_SNOWFLAKE_POC` |
-| `<SNOWFLAKE_SCHEMA>` | Source schema | `BANKING_SOURCE` |
+| `<SNOWFLAKE_WAREHOUSE>` | Existing customer-approved warehouse | Required; no default |
+| `<SNOWFLAKE_DATABASE>` | Existing enterprise database | Required; no default |
+| `<SNOWFLAKE_SCHEMA>` | New dedicated POC schema in the existing database | Required; no default |
 | `<SNOWFLAKE_LOADER_ROLE>` | Synthetic data loader role | `FABRIC_POC_LOADER` |
 | `<SNOWFLAKE_MIRROR_ROLE>` | Fabric mirroring role | `FABRIC_POC_MIRROR` |
+| `<SNOWFLAKE_PRIVATE_HOST>` | Snowflake `privatelink-account-url` hostname | Required at runtime; never commit |
+| `<FABRIC_VNET_GATEWAY_ID>` | Existing Fabric VNet data gateway | Required at runtime; never commit |
 
 Names and non-secret IDs may be supplied locally. Passwords, private keys, key passphrases, OAuth tokens, personal access tokens, connection strings, Fabric connection credentials, and real customer data must not appear in the prompt or repository.
 
@@ -60,9 +62,11 @@ Deliver a working, evidence-backed POC where permissions and environment allow. 
 5. Default local Snowflake access to interactive browser/Entra SSO. For automation, use an encrypted, rotated RSA key stored outside the repository or another customer-approved workload identity pattern.
 6. Never solve a Snowflake access error by granting `ACCOUNTADMIN`, ownership of unrelated objects, or broad future grants outside the POC schema.
 7. Never mirror an entire customer database by default. Select the six POC tables explicitly.
-8. Do not delete or resize shared capacity, Snowflake warehouses, roles, connections, workspaces, databases, resource groups, or repositories without explicit authorization and exact-target verification.
-9. Keep cleanup scoped to the dedicated POC objects and protected by an explicit confirmation flag.
-10. Run working-tree and Git-history secret scans before any public push. Rotate a real exposed credential before rewriting history.
+8. Never create, resize, suspend, resume, or delete the customer's Snowflake account, database, or warehouse.
+9. Do not delete shared capacity, connections, workspaces, resource groups, private endpoints, DNS, gateways, or repositories without explicit authorization and exact-target verification.
+10. Keep cleanup scoped to the dedicated POC schema and optional dedicated roles, protected by an explicit confirmation flag.
+11. Run working-tree and Git-history secret scans before any public push. Rotate a real exposed credential before rewriting history.
+12. Keep the repository private until its owner explicitly approves publication.
 
 ## Inspect before changing
 
@@ -88,7 +92,7 @@ Use permanent managed tables in `<SNOWFLAKE_DATABASE>.<SNOWFLAKE_SCHEMA>`:
 
 Keep identifiers unquoted and uppercase to avoid case drift at the Fabric boundary. Preserve shared synthetic `CUSTOMER_ID`, `TRANSACTION_ID`, `DEVICE_ID`, `MERCHANT_ID`, and `ACCOUNT_ID` relationships.
 
-Use `snowflake_source/sql/00_setup.sql` as the reviewed, idempotent setup contract. It should create an X-Small auto-suspending warehouse, POC database/schema, six tables, and separate loader/mirror roles. The mirror role should have only warehouse/database/schema usage, schema `CREATE STREAM`, table `SELECT`, and required discovery privileges. A Snowflake administrator assigns the roles to actual principals in a private working copy of the assignment template.
+Use `snowflake_source/sql/00_setup.sql` as the reviewed, idempotent setup contract. It must verify and reuse `<SNOWFLAKE_DATABASE>` and `<SNOWFLAKE_WAREHOUSE>`, then create only the dedicated POC schema, six tables, and separate loader/mirror roles. It must never create or alter the database or warehouse. The mirror role should have only warehouse/database/schema usage, schema `CREATE STREAM`, table `SELECT`, and required discovery privileges. A Snowflake administrator assigns the roles to actual principals in a private working copy of the assignment template.
 
 Generate deterministic synthetic data with `generators/generate_snowflake_data.py`. Validate files before loading. Load through session-scoped staging tables and keyed `MERGE`, not unbounded row-by-row mutations. Demonstrate an incremental insert/update batch and make retries safe.
 
@@ -147,7 +151,9 @@ For Warehouse security tests, use a temporary least-privilege identity, record s
 
 ## Networking and cost
 
-If Snowflake is privately reachable, use a Fabric VNet data gateway or on-premises data gateway. Do not claim direct workspace-to-Snowflake Private Link support unless current official documentation confirms it.
+Assume an existing enterprise Snowflake environment and require the private route by default. Confirm that the actual Snowflake product edition is Business Critical or higher, discover/authorize Azure PrivateLink through a customer Snowflake administrator, configure private account and OCSP DNS, and use a Fabric VNet data gateway on a dedicated subnet delegated to `Microsoft.PowerPlatform/vnetaccesslinks`. Reuse an approved existing gateway or create it idempotently with `infra/fabric/vnet_gateway.py` only after explicit customer approval. Set the Fabric connection to `VirtualNetworkGateway`, the approved gateway ID, and `<SNOWFLAKE_PRIVATE_HOST>`. Never commit PrivateLink output, endpoint values, DNS inventory, or gateway IDs.
+
+Allow `ShareableCloud` only when the owner explicitly authorizes a public-network lab exception. Clearly label its evidence as direct cloud rather than private-path validation.
 
 Prefer region alignment between Snowflake on Azure and the Fabric capacity. Mirror only required tables, use bounded data, monitor Snowflake credits/Fabric utilization, and watch for unexpected reseeds. Remember that mirroring polls continuously and that stop/start, DDL, schema recreation, or a long capacity pause can trigger a full reseed.
 
@@ -184,7 +190,7 @@ Maintain three distinct statuses:
 2. Snowflake/Fabric infrastructure deployed;
 3. end-to-end/incremental behavior verified.
 
-Never promote a lower status into a higher claim. Put sanitized measured results in `docs/live-validation-results.md`; leave the template as “Not run” when no live evidence exists.
+Never promote a lower status into a higher claim. Put sanitized measured results in `docs/live-validation-results.md`; state "Not run" when no live evidence exists and identify whether evidence used the private or direct cloud route.
 
 ## Completion criteria
 
@@ -198,6 +204,8 @@ The task is complete only when:
 - secret scans pass;
 - documentation reflects actual evidence;
 - cleanup is safe and explicitly guarded;
+- setup and cleanup preserve the existing Snowflake database and warehouse;
+- PrivateLink, DNS, VNet gateway, and private connection checks are evidenced in the customer environment;
 - any optional live deployment has customer authorization and recorded sanitized evidence.
 
 If credentials, permissions, capacity state, or networking block live execution, finish all safe offline work, document the exact blocker and next command, and do not fabricate success.

@@ -8,6 +8,12 @@ Copy `.env.example` to `.env`; `.env` is ignored. Prefer `az login` for Fabric a
 
 Snowflake native password authentication is supported for compatibility but is not the repository default. Never place a password in `.env.example`, SQL, source code, shell scripts, screenshots, or committed logs.
 
+## Private connectivity
+
+Customer deployments default to Snowflake Azure Private Link through a Fabric VNet data gateway. Keep the Snowflake PrivateLink configuration response, private service alias, endpoint IDs/IPs, private DNS details, and gateway ID outside Git. Use `ACCOUNTADMIN` only for administrator-controlled PrivateLink discovery and authorization; the Fabric runtime principal uses the dedicated least-privilege mirror role.
+
+The setup and cleanup tools never create or drop the customer database or warehouse. Cleanup is restricted to the configured dedicated schema and, only with an additional flag, the dedicated POC roles.
+
 ## Public-release gate
 
 Run `python tools/security_scan.py --working-tree --git-history` before every public release. Review all findings manually. If a real credential was ever committed, revoke/rotate it first, then remove it from the full Git history before publishing.

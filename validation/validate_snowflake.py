@@ -84,19 +84,18 @@ def validate_files(root: Path) -> dict[str, object]:
 def validate_live() -> dict[str, object]:
     from snowflake_source.common import connect, identifier
 
-    database = identifier("SNOWFLAKE_DATABASE", "FABRIC_SNOWFLAKE_POC")
-    schema = identifier("SNOWFLAKE_SCHEMA", "BANKING_SOURCE")
+    database = identifier("SNOWFLAKE_DATABASE")
+    schema = identifier("SNOWFLAKE_SCHEMA")
     counts: dict[str, int] = {}
-    with connect() as connection:
-        with connection.cursor() as cursor:
-            for table in TABLE_KEYS:
-                cursor.execute(f"SELECT COUNT(*) FROM {database}.{schema}.{table}")
-                counts[table] = int(cursor.fetchone()[0])
-            cursor.execute(
-                f"SELECT COUNT(*) FROM {database}.{schema}.FRAUD_ALERTS a "
-                f"JOIN {database}.{schema}.TRANSACTIONS t ON a.TRANSACTION_ID=t.TRANSACTION_ID"
-            )
-            joined_alerts = int(cursor.fetchone()[0])
+    with connect() as connection, connection.cursor() as cursor:
+        for table in TABLE_KEYS:
+            cursor.execute(f"SELECT COUNT(*) FROM {database}.{schema}.{table}")
+            counts[table] = int(cursor.fetchone()[0])
+        cursor.execute(
+            f"SELECT COUNT(*) FROM {database}.{schema}.FRAUD_ALERTS a "
+            f"JOIN {database}.{schema}.TRANSACTIONS t ON a.TRANSACTION_ID=t.TRANSACTION_ID"
+        )
+        joined_alerts = int(cursor.fetchone()[0])
     if any(value <= 0 for value in counts.values()):
         raise ValueError(f"One or more source tables are empty: {counts}")
     return {"database": database, "schema": schema, "counts": counts, "joined_alerts": joined_alerts}

@@ -1,0 +1,8 @@
+# Copy to ignored terraform.tfvars. These are environment identifiers, not reusable defaults.
+subscription_id                         = "<azure-subscription-id>"
+resource_group_name                     = "<existing-network-resource-group>"
+virtual_network_name                    = "<existing-virtual-network>"
+private_endpoint_subnet_id              = "<existing-private-endpoint-subnet-resource-id>"
+snowflake_private_link_service_alias    = "<privatelink-pls-id-from-snowflake>"
+create_fabric_gateway_subnet            = false
+fabric_gateway_subnet_address_prefixes  = []

@@ -44,10 +44,18 @@ def connection_payload(
     username: str,
     private_key: str,
     passphrase: str,
+    connectivity_type: str = "VirtualNetworkGateway",
+    gateway_id: str = "",
 ) -> dict[str, Any]:
-    """Build the documented ShareableCloud KeyPair request."""
-    return {
-        "connectivityType": "ShareableCloud",
+    """Build a documented cloud or VNet-gateway KeyPair request."""
+    if connectivity_type not in {"VirtualNetworkGateway", "ShareableCloud"}:
+        raise ValueError(
+            "FABRIC_SNOWFLAKE_CONNECTIVITY_TYPE must be VirtualNetworkGateway or ShareableCloud"
+        )
+    if connectivity_type == "VirtualNetworkGateway" and not gateway_id:
+        raise ValueError("FABRIC_SNOWFLAKE_GATEWAY_ID is required for private connectivity")
+    payload: dict[str, Any] = {
+        "connectivityType": connectivity_type,
         "displayName": display_name,
         "connectionDetails": {
             "type": "Snowflake",
@@ -61,7 +69,9 @@ def connection_payload(
         "privacyLevel": "Organizational",
         "credentialDetails": {
             "singleSignOnType": "None",
-            "connectionEncryption": "NotEncrypted",
+            "connectionEncryption": (
+                "Encrypted" if connectivity_type == "VirtualNetworkGateway" else "NotEncrypted"
+            ),
             "skipTestConnection": False,
             "credentials": {
                 "credentialType": "KeyPair",
@@ -70,14 +80,27 @@ def connection_payload(
                 "passphrase": passphrase,
             },
         },
-        "allowUsageInUserControlledCode": True,
     }
+    if connectivity_type == "VirtualNetworkGateway":
+        payload["gatewayId"] = gateway_id
+    else:
+        payload["allowUsageInUserControlledCode"] = True
+    return payload
 
 
 def ensure_connection(client: FabricClient, payload: dict[str, Any]) -> dict[str, Any]:
     display_name = str(payload["displayName"])
     existing = client._named(client.list_all("connections"), display_name)
     if existing:
+        if existing.get("connectivityType") != payload.get("connectivityType"):
+            raise FabricApiError(
+                f"Existing connection {display_name!r} uses "
+                f"{existing.get('connectivityType')!r}, not {payload.get('connectivityType')!r}"
+            )
+        if payload.get("gatewayId") and existing.get("gatewayId") != payload.get("gatewayId"):
+            raise FabricApiError(
+                f"Existing connection {display_name!r} is attached to a different gateway"
+            )
         return existing
     response = client.request("POST", "connections", json=payload)
     connection = client._json(response)
@@ -90,17 +113,28 @@ def ensure_connection(client: FabricClient, payload: dict[str, Any]) -> dict[str
 
 def main() -> None:
     load_dotenv()
+    connectivity_type = os.getenv(
+        "FABRIC_SNOWFLAKE_CONNECTIVITY_TYPE", "VirtualNetworkGateway"
+    ).strip()
+    gateway_id = os.getenv("FABRIC_SNOWFLAKE_GATEWAY_ID", "").strip()
+    configured_server = os.getenv("FABRIC_SNOWFLAKE_SERVER", "").strip()
+    if connectivity_type == "VirtualNetworkGateway" and not configured_server:
+        raise RuntimeError(
+            "Set FABRIC_SNOWFLAKE_SERVER to the Snowflake PrivateLink account URL; "
+            "a public account hostname is not inferred for private connectivity"
+        )
     key_path = Path(required("FABRIC_SNOWFLAKE_PRIVATE_KEY_FILE"))
     passphrase_path = Path(required("FABRIC_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_FILE"))
     payload = connection_payload(
         display_name=required("FABRIC_SNOWFLAKE_CONNECTION_NAME"),
-        server=os.getenv("FABRIC_SNOWFLAKE_SERVER", "").strip()
-        or snowflake_server(required("SNOWFLAKE_ACCOUNT")),
+        server=configured_server or snowflake_server(required("SNOWFLAKE_ACCOUNT")),
         warehouse=required("SNOWFLAKE_WAREHOUSE"),
         role=required("SNOWFLAKE_MIRROR_ROLE"),
         username=required("FABRIC_SNOWFLAKE_USER"),
         private_key=key_path.read_text(encoding="utf-8"),
         passphrase=passphrase_path.read_text(encoding="utf-8").strip(),
+        connectivity_type=connectivity_type,
+        gateway_id=gateway_id,
     )
     # Fabric performs a live Snowflake connection test during this request. It
     # can take several minutes even though ordinary Fabric API calls are quick.

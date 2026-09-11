@@ -1,17 +1,18 @@
 # Microsoft Fabric + Snowflake medallion POC
 
-This public-ready proof of concept mirrors synthetic retail-banking data from Snowflake hosted on Microsoft Azure into Microsoft Fabric, then builds governed Silver and Gold layers, a Fabric Warehouse serving model, reconciliation evidence, and a customer-risk analytical scenario.
+This public-ready proof of concept mirrors deterministic synthetic retail-banking data from an existing enterprise-managed Snowflake database on Microsoft Azure into Microsoft Fabric. It then builds governed Silver and Gold layers, a Fabric Warehouse serving model, reconciliation evidence, and a customer-risk analytical scenario.
 
-The repository is an adaptation of [`regshih/fabric-medallion-multisource-poc`](https://github.com/regshih/fabric-medallion-multisource-poc). It reuses the Fabric REST client, workspace and existing-capacity handling, item definitions, notebooks, pipeline observability, Warehouse controls, governance, and validation patterns while replacing the two reference sources with one Snowflake database.
+The repository adapts [`regshih/fabric-medallion-multisource-poc`](https://github.com/regshih/fabric-medallion-multisource-poc). It reuses the Fabric REST client, existing-capacity handling, item definitions, notebooks, pipeline observability, Warehouse controls, governance, and validation patterns while replacing the reference sources with Snowflake.
 
-> All records are deterministic synthetic test data. Do not use production or real-person data with this POC.
+> All records are synthetic test data. Do not use production or real-person data with this POC.
 
 ## Architecture
 
 ```text
-Snowflake on Azure
-  six managed synthetic banking tables
+existing Snowflake database and warehouse on Azure
+  dedicated POC schema with six managed synthetic tables
              |
+             | Azure Private Link + Fabric VNet data gateway
              | Fabric Snowflake Mirroring
              v
 snowflake_bronze (source-aligned Bronze Delta replica in OneLake)
@@ -27,49 +28,51 @@ gold_lh (star schema + AggCustomerRiskProfile)
 gold_wh / T-SQL       Direct Lake-ready consumption
 ```
 
-Bronze is the mirrored database itself. A second physical Bronze Lakehouse would add cost without adding a meaningful contract. See [ARCHITECTURE.md](ARCHITECTURE.md) and [Snowflake mirroring behavior](docs/snowflake-fabric-mirroring.md).
+Bronze is the mirrored database itself. A second physical Bronze Lakehouse would add cost without adding a meaningful contract. See [Architecture](ARCHITECTURE.md) and [Snowflake mirroring behavior](docs/snowflake-fabric-mirroring.md).
 
 ## Evidence status
 
 | Area | Evidence in this repository |
 |---|---|
-| Implementation | Complete local repository implementation |
-| Automated tests | 44 passing tests at initial publication gate |
-| Secret handling | Working-tree and Git-history scanner included |
-| Snowflake/Fabric deployment | Not claimed; requires a customer's Snowflake account, Fabric connection, and active capacity |
-| End-to-end pipeline | Not claimed until the live checklist is completed |
+| Implementation | Complete repository implementation with CI-enforced tests and scans |
+| Secret handling | Working-tree and reachable Git-history scanner included |
+| Reference deployment | Snowflake-to-Fabric mirror, medallion pipeline, Warehouse, and incremental behavior validated; see the sanitized [results](docs/live-validation-results.md) |
+| Private customer route | Implemented and documented; must be validated in each customer's Business Critical-or-higher Snowflake/VNet environment |
 
-The repository deliberately distinguishes local implementation from deployed infrastructure and live validation. Update [docs/live-validation-results.md](docs/live-validation-results.md) only with sanitized evidence from an actual run.
+The sanitized reference run used an explicitly configured direct cloud connection. That proves the data path and Fabric implementation, not the customer-specific PrivateLink, DNS, or VNet gateway path.
 
 ## Analytical outcome
 
 `AggCustomerRiskProfile` combines transaction volume, transaction-model scores, merchant risk, digital sessions, failed authentication, device trust, geography, and fraud alerts. Supporting outputs include:
 
-- `DimCustomer`, `DimAccount`, `DimMerchant`, `DimDevice`, and `DimDate`
-- `FactTransactions`, `FactDigitalSessions`, and `FactFraudAlerts`
-- `AggCustomerRiskProfile`
-- `reconciliation_results`, `source_validation_results`, and `control_pipeline_run_log`
-- Silver quarantine tables for malformed or orphaned records
+- dimensions and facts for customers, accounts, merchants, devices, dates, transactions, sessions, and alerts;
+- Silver quarantine tables for malformed or orphaned records;
+- `reconciliation_results`, `source_validation_results`, and `control_pipeline_run_log`.
 
 ## Repository map
 
 | Path | Purpose |
 |---|---|
 | `generators/` | Deterministic synthetic CSV generation |
-| `snowflake_source/` | Snowflake DDL/grants, connection helper, loader, and guarded cleanup |
-| `infra/snowflake/account-bootstrap/` | Optional Terraform account creation from an existing Snowflake organization |
-| `infra/fabric/` | Fabric REST workspace, items, Snowflake mirror, Git integration, and capacity controls |
+| `snowflake_source/` | Schema/table DDL, least-privilege roles, loader, and schema-scoped cleanup |
+| `infra/azure/snowflake-private-endpoint/` | Optional Terraform for the Azure private endpoint and dedicated Fabric gateway subnet |
+| `infra/fabric/` | Fabric REST VNet gateway, private connection, workspace, mirror, Git integration, and capacity controls |
 | `infra/governance/` | Catalog descriptions/search, domain assignment, and OneLake access tooling |
-| `notebooks/` | Source validation, Silver, Gold, Warehouse, reconciliation, audit, and demo notebooks |
-| `pipelines/` | `pl_snowflake_medallion` orchestration with success/failure paths |
-| `warehouse/` | Gold serving, RLS, masking, and validation SQL |
-| `validation/`, `tests/` | Offline/live validators and automated contracts |
-| `tools/` | Fabric SQL/Git helpers and secret scanner |
+| `notebooks/`, `pipelines/`, `warehouse/` | Medallion processing, orchestration, serving, and security contracts |
+| `validation/`, `tests/`, `tools/` | Offline/live validators, automated contracts, and secret scanning |
 | `prompts/` | Standalone LLM code-editor prompt for customer adaptation |
 
-## Quick start
+## Prerequisites
 
-Prerequisites are Python 3.11+, Azure CLI, PowerShell 7+ where used, an existing Fabric capacity, and a Snowflake account hosted on Azure. Organizations with an existing Snowflake `ORGADMIN` account can create a dedicated Azure West US 2 account through the optional [Terraform bootstrap module](infra/snowflake/account-bootstrap/README.md).
+- Python 3.11+, Azure CLI, and PowerShell 7+ where used;
+- an existing Fabric capacity and permission to create a dedicated workspace;
+- an existing Snowflake account hosted on Azure, an approved existing database, and an approved existing virtual warehouse;
+- Snowflake Business Critical Edition or higher when Azure Private Link is required;
+- customer-approved Azure VNet, private DNS, private-endpoint subnet, and dedicated Fabric VNet data gateway subnet.
+
+This repository never creates or drops the customer's Snowflake account, database, or warehouse.
+
+## Quick start
 
 ```powershell
 python -m venv .venv
@@ -82,44 +85,43 @@ python validation\validate_snowflake.py --mode files --data-dir data\snowflake\i
 python tools\security_scan.py --working-tree
 ```
 
-`.env` is ignored. Keep all credentials outside Git. The default loader authentication is interactive browser SSO; key-pair paths and passphrases are local-only values.
+`.env` is ignored. Keep all credentials, customer identifiers, private endpoint values, and gateway IDs outside Git. The default loader authentication is interactive browser SSO; automation supports separately managed encrypted key pairs and a passphrase file.
 
-Follow [docs/deployment.md](docs/deployment.md) for the ordered Snowflake and Fabric setup. Use [docs/runbook.md](docs/runbook.md) for operations, incremental changes, troubleshooting, costs, and cleanup.
+Follow the ordered [deployment guide](docs/deployment.md), then use the [runbook](docs/runbook.md) for incremental changes, troubleshooting, costs, and safe cleanup.
 
 ## Customer implementation prompt
 
-[`prompts/llm-code-editor-prompt.md`](prompts/llm-code-editor-prompt.md) can be pasted into an LLM-enabled code editor together with this repository. It tells the editor how to inspect the environment, preserve the security boundary, deploy idempotently, validate evidence, and avoid unsupported claims.
+[`prompts/llm-code-editor-prompt.md`](prompts/llm-code-editor-prompt.md) can be pasted into an LLM-enabled code editor opened at this repository. It directs the editor to use an existing enterprise Snowflake database and private Fabric connection, preserve security boundaries, deploy idempotently, and report only evidenced results.
 
 ## Security
 
-- No credentials, private keys, passwords, account locators, tenant/subscription IDs, or live item IDs are committed.
+- No credentials, private keys, passwords, account locators, hosts, tenant/subscription IDs, endpoint values, or live Fabric IDs are committed.
 - Fabric automation authenticates with Microsoft Entra ID through Azure CLI/`DefaultAzureCredential`.
-- Snowflake loaders default to interactive SSO and support separately managed encrypted key pairs.
-- The mirror definition contains only a Fabric connection ID and object names—not connection credentials.
-- Source security policies do not propagate to Fabric; apply Fabric permissions independently.
+- The customer path defaults to a Fabric VNet data gateway and a Snowflake private hostname. Public `ShareableCloud` connectivity requires explicit lab configuration.
+- The mirror definition contains only a Fabric connection ID and object names, never connection credentials.
+- Snowflake policies do not propagate to Fabric; apply Fabric permissions independently.
 
-Read [SECURITY.md](SECURITY.md) before deployment.
+Read [SECURITY.md](SECURITY.md) before deployment. Repository visibility must remain private until its owner explicitly approves publication.
 
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md)
-- [Snowflake-to-Fabric mirroring](docs/snowflake-fabric-mirroring.md)
 - [Deployment](docs/deployment.md)
+- [Snowflake-to-Fabric mirroring](docs/snowflake-fabric-mirroring.md)
 - [Runbook, cost, and cleanup](docs/runbook.md)
 - [Validation checklist](docs/validation.md)
-- [Live validation results template](docs/live-validation-results.md)
+- [Live validation results](docs/live-validation-results.md)
 - [Governance and security](docs/governance-security.md)
 - [Known limitations](docs/known-limitations.md)
 - [Implementation decisions](docs/implementation-decisions.md)
 
 ## Official references
 
-- [Microsoft Fabric Mirroring overview](https://learn.microsoft.com/en-us/fabric/mirroring/overview)
 - [Mirroring Snowflake in Fabric](https://learn.microsoft.com/en-us/fabric/mirroring/snowflake)
 - [Snowflake mirroring tutorial](https://learn.microsoft.com/en-us/fabric/mirroring/snowflake-tutorial)
-- [Snowflake mirroring limitations](https://learn.microsoft.com/en-us/fabric/mirroring/snowflake-limitations)
+- [Fabric VNet data gateway overview](https://learn.microsoft.com/en-us/data-integration/vnet/overview)
+- [Snowflake Azure Private Link](https://docs.snowflake.com/en/user-guide/privatelink-azure)
 - [Fabric mirrored database REST definition](https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/definitions/mirrored-database-definition)
-- [Snowflake Python connector authentication](https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect)
 
 ## License
 

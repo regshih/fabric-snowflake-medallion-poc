@@ -37,7 +37,10 @@ class CapacityManager:
     ) -> None:
         match = RESOURCE_ID.fullmatch(resource_id.rstrip("/"))
         if not match:
-            raise ValueError("FABRIC_CAPACITY_ID must be a complete Microsoft.Fabric/capacities ARM resource ID")
+            raise ValueError(
+                "FABRIC_CAPACITY_RESOURCE_ID must be a complete "
+                "Microsoft.Fabric/capacities ARM resource ID"
+            )
         self.resource_id = resource_id.rstrip("/")
         self.name = match.group(1)
         self.credential = credential or DefaultAzureCredential()
@@ -106,7 +109,7 @@ def main() -> None:
     parser.add_argument("action", choices=("status", "resume", "suspend"))
     parser.add_argument("--confirm-name", default="", help="Required exact capacity name for suspend")
     args = parser.parse_args()
-    resource_id = os.getenv("FABRIC_CAPACITY_ID", "")
+    resource_id = os.getenv("FABRIC_CAPACITY_RESOURCE_ID", "")
     manager = CapacityManager(resource_id)
     if args.action == "resume":
         result = manager.resume()

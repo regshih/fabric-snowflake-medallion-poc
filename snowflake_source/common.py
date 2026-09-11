@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
@@ -41,9 +42,9 @@ def connection_parameters(
     if include_context:
         params.update(
             {
-                "warehouse": identifier("SNOWFLAKE_WAREHOUSE", "FABRIC_POC_WH"),
-                "database": identifier("SNOWFLAKE_DATABASE", "FABRIC_SNOWFLAKE_POC"),
-                "schema": identifier("SNOWFLAKE_SCHEMA", "BANKING_SOURCE"),
+                "warehouse": identifier("SNOWFLAKE_WAREHOUSE"),
+                "database": identifier("SNOWFLAKE_DATABASE"),
+                "schema": identifier("SNOWFLAKE_SCHEMA"),
             }
         )
     role = os.getenv(role_variable, "").strip()
@@ -52,6 +53,14 @@ def connection_parameters(
     if authenticator.upper() == "SNOWFLAKE_JWT":
         params["private_key_file"] = required("SNOWFLAKE_PRIVATE_KEY_FILE")
         passphrase = os.getenv("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE", "")
+        passphrase_file = os.getenv("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_FILE", "").strip()
+        if passphrase and passphrase_file:
+            raise RuntimeError(
+                "Set only one of SNOWFLAKE_PRIVATE_KEY_PASSPHRASE or "
+                "SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_FILE"
+            )
+        if passphrase_file:
+            passphrase = Path(passphrase_file).read_text(encoding="utf-8").strip()
         if passphrase:
             params["private_key_file_pwd"] = passphrase
     elif authenticator.lower() == "snowflake":

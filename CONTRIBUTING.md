@@ -11,8 +11,12 @@ Contributions are welcome through an issue or pull request.
 
    ```powershell
    python -m pytest -q
+   python -m ruff check generators snowflake_source validation infra tools tests
+   python -m pip_audit --local --progress-spinner off
    python -m compileall -q generators snowflake_source validation infra tools
    python tools\security_scan.py --working-tree --git-history
+   terraform fmt -check -recursive infra\azure
+   terraform -chdir=infra\azure\snowflake-private-endpoint validate
    ```
 
 5. Update documentation and evidence status. Local tests must never be presented as a live deployment result.

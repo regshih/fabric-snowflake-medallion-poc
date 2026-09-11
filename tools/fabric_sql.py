@@ -12,7 +12,6 @@ from pathlib import Path
 import pyodbc
 from azure.identity import AzureCliCredential
 
-
 SQL_COPT_SS_ACCESS_TOKEN = 1256
 
 

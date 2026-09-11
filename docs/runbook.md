@@ -24,7 +24,7 @@ Record source counts and UTC time before the load. Watch Fabric replication unti
 | Symptom | Check |
 |---|---|
 | Snowflake login fails | Account identifier, user, authenticator, role, MFA/network policy, key path/passphrase |
-| Fabric connection fails without a useful error | Exact uppercase warehouse/database/schema names; gateway route; Snowflake network policy |
+| Private connection fails | Private account/OCSP DNS, endpoint approval, Snowflake network policy, gateway status/region, exact warehouse/database/schema casing |
 | No tables offered for mirroring | Managed-table type, mirror-role usage/select/create-stream grants, exact database/schema |
 | Mirror table is delayed | Replication monitor, inactive-table polling backoff, Snowflake warehouse availability |
 | Mirror unexpectedly performs initial copy | Recent DDL, stop/start, long capacity pause, schema-management tools |
@@ -38,7 +38,7 @@ Record source counts and UTC time before the load. Watch Fabric replication unti
 
 The cost surfaces are the Snowflake virtual warehouse, Snowflake storage, cross-region/cloud egress, the existing Fabric capacity while active, and OneLake storage above included mirroring allowance.
 
-- Use X-Small and 60-second auto-suspend for the seed/load warehouse unless measured demand requires more.
+- Use the customer-approved warehouse and its resource monitor; coordinate sizing and auto-suspend changes with its owner.
 - Mirror only the six POC tables.
 - Co-locate Snowflake on Azure and Fabric where practical.
 - Monitor repeated reseeds; they can be more expensive than incremental polling.
@@ -55,13 +55,13 @@ Cleanup is intentionally split across security boundaries.
 1. Export only sanitized evidence needed for the customer handoff.
 2. Delete the dedicated Fabric workspace through the portal after verifying its exact name and contents.
 3. Remove the Fabric Snowflake connection only if no other workspace uses it.
-4. Drop the Snowflake database with the guarded helper:
+4. Drop only the dedicated Snowflake POC schema with the guarded helper:
 
    ```powershell
-   python -m snowflake_source.cleanup --confirm DELETE_SYNTHETIC_SNOWFLAKE_POC
+   python -m snowflake_source.cleanup --confirm DELETE_SYNTHETIC_POC_SCHEMA --confirm-schema <dedicated-poc-schema>
    ```
 
-5. Add `--include-shared-objects` only after proving the configured warehouse and roles are dedicated to this POC.
+5. Add `--include-dedicated-roles` only after verifying the two roles are dedicated to this POC and are not assigned for another purpose.
 6. Pause an existing Fabric capacity only with explicit authorization and after confirming it will not interrupt other workloads.
 
-The repository never deletes an Azure resource group, subscription resource, customer database, or unverified shared object.
+The helper never drops the configured database or warehouse. Removing Azure private endpoints, DNS records, gateway resources, resource groups, or other customer-owned infrastructure requires a separately reviewed customer change.

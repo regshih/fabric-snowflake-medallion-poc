@@ -1,7 +1,12 @@
 import base64
 import json
 
-from infra.fabric.source_mirror import TABLES, definition_part, enabled, snowflake_definition
+from infra.fabric.source_mirror import (
+    TABLES,
+    definition_part,
+    enabled,
+    snowflake_definition,
+)
 
 
 def test_snowflake_definition_is_deterministic_selective_and_credential_free():

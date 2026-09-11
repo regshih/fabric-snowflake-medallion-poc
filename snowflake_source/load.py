@@ -62,8 +62,8 @@ def load_batch(root: Path, batch: str) -> dict[str, int]:
     manifest = json.loads((batch_dir / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("classification") != "SYNTHETIC_TEST_DATA":
         raise ValueError("Refusing to load data without SYNTHETIC_TEST_DATA classification")
-    database = identifier("SNOWFLAKE_DATABASE", "FABRIC_SNOWFLAKE_POC")
-    schema = identifier("SNOWFLAKE_SCHEMA", "BANKING_SOURCE")
+    database = identifier("SNOWFLAKE_DATABASE")
+    schema = identifier("SNOWFLAKE_SCHEMA")
     loaded: dict[str, int] = {}
     with connect() as connection:
         with connection.cursor() as cursor:

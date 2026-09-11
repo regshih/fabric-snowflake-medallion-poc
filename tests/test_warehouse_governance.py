@@ -13,7 +13,6 @@ from infra.governance.onelake_data_access import (
     update,
 )
 
-
 ROOT = Path(__file__).parents[1]
 WAREHOUSE = ROOT / "warehouse"
 
@@ -43,7 +42,7 @@ def test_warehouse_refresh_order_and_object_contract():
 
 def test_warehouse_assets_contain_no_embedded_identity_or_secret():
     text = "\n".join(path.read_text(encoding="utf-8") for path in WAREHOUSE.iterdir())
-    guid = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b", re.I)
+    guid = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b", re.IGNORECASE)
     assert not guid.search(text)
     assert "AccountKey=" not in text
     assert "Bearer " not in text

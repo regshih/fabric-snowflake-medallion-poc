@@ -1,22 +1,14 @@
--- Run with a role permitted to create the POC database, warehouse, and roles.
+-- Run with a role permitted to create a schema/tables/roles in the customer's
+-- existing database and to grant usage on its approved existing warehouse.
 -- Placeholders are validated as unquoted identifiers by snowflake/setup.py.
 
-CREATE DATABASE IF NOT EXISTS {{DATABASE}}
-  COMMENT = 'Synthetic Microsoft Fabric Snowflake medallion proof of concept';
 CREATE SCHEMA IF NOT EXISTS {{DATABASE}}.{{SCHEMA}}
-  COMMENT = 'Synthetic banking source tables for Fabric Mirroring';
-
-CREATE WAREHOUSE IF NOT EXISTS {{WAREHOUSE}}
-  WAREHOUSE_SIZE = 'XSMALL'
-  AUTO_SUSPEND = 60
-  AUTO_RESUME = TRUE
-  INITIALLY_SUSPENDED = TRUE
-  COMMENT = 'Cost-optimized warehouse for the Fabric Snowflake POC';
+  COMMENT = 'Managed by fabric-snowflake-medallion-poc; synthetic source schema';
 
 CREATE ROLE IF NOT EXISTS {{LOADER_ROLE}}
-  COMMENT = 'Loads synthetic POC data only';
+  COMMENT = 'Managed by fabric-snowflake-medallion-poc; synthetic loader';
 CREATE ROLE IF NOT EXISTS {{MIRROR_ROLE}}
-  COMMENT = 'Least-privilege role used by Microsoft Fabric Mirroring';
+  COMMENT = 'Managed by fabric-snowflake-medallion-poc; Fabric mirror';
 
 GRANT USAGE ON WAREHOUSE {{WAREHOUSE}} TO ROLE {{LOADER_ROLE}};
 GRANT USAGE ON DATABASE {{DATABASE}} TO ROLE {{LOADER_ROLE}};
