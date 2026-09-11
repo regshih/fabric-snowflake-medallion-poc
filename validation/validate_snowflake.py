@@ -89,10 +89,14 @@ def validate_live() -> dict[str, object]:
     counts: dict[str, int] = {}
     with connect() as connection, connection.cursor() as cursor:
         for table in TABLE_KEYS:
-            cursor.execute(f"SELECT COUNT(*) FROM {database}.{schema}.{table}")
+            # Database/schema are validated unquoted identifiers; table comes
+            # only from the fixed TABLE_KEYS contract.
+            cursor.execute(
+                f"SELECT COUNT(*) FROM {database}.{schema}.{table}"  # nosec B608
+            )
             counts[table] = int(cursor.fetchone()[0])
         cursor.execute(
-            f"SELECT COUNT(*) FROM {database}.{schema}.FRAUD_ALERTS a "
+            f"SELECT COUNT(*) FROM {database}.{schema}.FRAUD_ALERTS a "  # nosec B608
             f"JOIN {database}.{schema}.TRANSACTIONS t ON a.TRANSACTION_ID=t.TRANSACTION_ID"
         )
         joined_alerts = int(cursor.fetchone()[0])

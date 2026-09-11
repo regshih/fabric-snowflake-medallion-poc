@@ -1,6 +1,7 @@
 import csv
 
 from generators.generate_snowflake_data import generate
+from snowflake_source.load import TABLE_COLUMNS
 from validation.validate_snowflake import validate_files
 
 
@@ -24,6 +25,9 @@ def test_generator_is_deterministic_and_referentially_valid(tmp_path):
     assert result["failures"] == []
     assert result["counts"]["TRANSACTIONS"] == 120
     assert result["counts"]["DIGITAL_SESSIONS"] == 40
+    for table, expected_columns in TABLE_COLUMNS.items():
+        with (first / "initial" / f"{table}.csv").open(newline="", encoding="utf-8") as handle:
+            assert tuple(csv.DictReader(handle).fieldnames or ()) == expected_columns
 
 
 def test_incremental_batch_contains_insert_and_update_scenarios(tmp_path):

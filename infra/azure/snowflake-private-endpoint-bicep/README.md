@@ -13,7 +13,9 @@ It does not create a resource group, VNet, Snowflake account, database, warehous
 - An existing Snowflake account hosted on Microsoft Azure. Azure Private Link requires Snowflake Business Critical Edition or higher; an organization calling its platform "enterprise" does not establish the Snowflake product edition.
 - An approved Azure resource group, VNet, private-endpoint subnet, private DNS design, and separate dedicated Fabric gateway subnet.
 - Azure permissions to deploy private endpoints and, if enabled, the delegated subnet and delete locks.
+- The `Microsoft.Network` resource provider already registered in the target subscription.
 - Snowflake `ACCOUNTADMIN` access for PrivateLink discovery and authorization only. Do not use that role for Fabric replication.
+- Confirmation that Snowflake account parameter `PREVENT_UNLOAD_TO_INLINE_URL` is not `TRUE`; Fabric currently blocks VNet-gateway mirroring when it is enabled.
 
 ## Prepare local parameters
 
@@ -25,7 +27,9 @@ Copy-Item main.bicepparam.example main.bicepparam
 
 `main.bicepparam` is ignored by Git. Azure supports connecting a private endpoint by resource ID or alias with manual approval. If Azure rejects Snowflake's alias, obtain the full Private Link service resource ID from Snowflake Support, as Snowflake's official procedure directs.
 
-By default, the network team supplies the gateway subnet. Set `createFabricGatewaySubnet = true`, provide the existing VNet name, and supply at least one approved CIDR only when this deployment is authorized to add the dedicated subnet. The private-endpoint subnet and Fabric gateway subnet must be different subnets.
+By default, the network team supplies the gateway subnet. Set `createFabricGatewaySubnet = true`, provide the existing VNet name, and supply at least one approved CIDR only when this deployment is authorized to create a new dedicated subnet. Do not target an existing subnet because an ARM subnet update could replace customer-managed subnet properties.
+
+The private endpoint must be in the same Azure subscription and region as its VNet. The Fabric gateway subnet must be separate from the private-endpoint subnet, IPv4-only, new and dedicated to the gateway, and must not be named `GatewaySubnet` or `AzureBastionSubnet`. Size it for Azure's five reserved addresses, every planned gateway member, and growth. Preserve required intra-subnet and data-service connectivity.
 
 ## Validate and deploy
 
@@ -53,7 +57,7 @@ The default Azure delete locks are stronger than Terraform's local `prevent_dest
 1. Record the created private endpoint resource ID without committing it.
 2. Obtain a narrowly scoped Azure federated token outside Bicep and have the Snowflake administrator call `SYSTEM$AUTHORIZE_PRIVATELINK`. Never put the token in parameters, deployment history, command history, logs, or Git.
 3. Configure private DNS so the Snowflake account and OCSP hostnames returned by `SYSTEM$GET_PRIVATELINK_CONFIG()` resolve to the endpoint private IP.
-4. Verify firewall rules, DNS, TLS, and the Approved connection state with SnowCD and `SYSTEM$ALLOWLIST_PRIVATELINK()` where available.
+4. Permit the Snowflake-documented TCP 443 and 80 flows, then verify DNS, TLS, and the Approved connection state with SnowCD and `SYSTEM$ALLOWLIST_PRIVATELINK()` where available.
 5. Register `Microsoft.PowerPlatform`, create the Fabric VNet data gateway on the dedicated delegated subnet, and store its ID only in ignored `.env`.
 6. Set `FABRIC_SNOWFLAKE_SERVER` to Snowflake's `privatelink-account-url` hostname and run `python -m infra.fabric.snowflake_connection`.
 
@@ -64,3 +68,4 @@ The default Azure delete locks are stronger than Terraform's local `prevent_dest
 - [Bicep private endpoint resource](https://learn.microsoft.com/en-us/azure/templates/microsoft.network/2024-07-01/privateendpoints)
 - [Bicep subnet resource](https://learn.microsoft.com/en-us/azure/templates/microsoft.network/2024-07-01/virtualnetworks/subnets)
 - [Create a Fabric VNet data gateway](https://learn.microsoft.com/en-us/data-integration/vnet/create-data-gateways)
+- [Snowflake mirroring limitations](https://learn.microsoft.com/en-us/fabric/mirroring/snowflake-limitations)

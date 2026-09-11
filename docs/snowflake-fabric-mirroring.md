@@ -48,6 +48,8 @@ A direct `ShareableCloud` connection is retained only as an explicitly configure
 
 The Snowflake account should be hosted on Azure in the same region as the Fabric capacity where practical. Cross-region placement can add latency and egress charges.
 
+Fabric normally stages Snowflake mirror data through an inline URL. If Snowflake account parameter `PREVENT_UNLOAD_TO_INLINE_URL` is `TRUE`, VNet and on-premises gateway mirroring are currently blocked. Treat this as an explicit customer security-policy decision and recheck Microsoft's limitations before deployment; do not disable the setting without customer approval.
+
 ## Operational behavior and limitations
 
 - Identifiers are case-sensitive at the Fabric connection and mirroring boundary. The repository deliberately uses unquoted uppercase identifiers.
@@ -58,6 +60,7 @@ The Snowflake account should be hosted on Azure in the same region as the Fabric
 - DDL changes, stop/start operations, and long capacity pauses can cause a full table reseed and additional Snowflake compute.
 - The mirrored database and its SQL analytics endpoint are read-only. Silver and Gold calculations belong in Lakehouses or a Warehouse.
 - Source policies are a different authorization boundary and must be recreated in Fabric.
+- `PREVENT_UNLOAD_TO_INLINE_URL = TRUE` currently blocks the VNet-gateway path used by this customer design.
 
 ## Cost controls
 

@@ -14,6 +14,8 @@ Customer deployments default to Snowflake Azure Private Link through a Fabric VN
 
 Use only an ignored local `terraform.tfvars` or `main.bicepparam` for the private endpoint deployment. The Bicep alias parameter is marked secure, and the example files contain placeholders only. Never put the Azure federated token used by `SYSTEM$AUTHORIZE_PRIVATELINK` in either IaC system or Azure deployment history.
 
+Terraform enforces an Azure Storage backend so Private Link inventory is not accidentally written to local state. Use Microsoft Entra authentication and customer-approved access controls for the state container; remember that Terraform's `sensitive` marker redacts display but does not remove values from state.
+
 The setup and cleanup tools never create or drop the customer database or warehouse. Cleanup is restricted to the configured dedicated schema and, only with an additional flag, the dedicated POC roles.
 
 ## Public-release gate

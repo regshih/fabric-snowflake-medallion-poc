@@ -54,6 +54,11 @@ def connection_payload(
         )
     if connectivity_type == "VirtualNetworkGateway" and not gateway_id:
         raise ValueError("FABRIC_SNOWFLAKE_GATEWAY_ID is required for private connectivity")
+    normalized_server = server.strip().lower()
+    if connectivity_type == "VirtualNetworkGateway" and ".privatelink." not in normalized_server:
+        raise ValueError(
+            "VirtualNetworkGateway requires Snowflake's privatelink-account-url hostname"
+        )
     payload: dict[str, Any] = {
         "connectivityType": connectivity_type,
         "displayName": display_name,
@@ -61,7 +66,7 @@ def connection_payload(
             "type": "Snowflake",
             "creationMethod": "Snowflake.Databases",
             "parameters": [
-                {"dataType": "Text", "name": "server", "value": server.lower()},
+                {"dataType": "Text", "name": "server", "value": normalized_server},
                 {"dataType": "Text", "name": "warehouse", "value": warehouse},
                 {"dataType": "Text", "name": "Role", "value": role},
             ],

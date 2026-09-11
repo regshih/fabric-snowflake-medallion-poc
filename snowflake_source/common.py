@@ -19,9 +19,14 @@ def required(name: str) -> str:
 
 
 def identifier(name: str, default: str | None = None) -> str:
-    value = os.getenv(name, default or "").strip()
+    return unquoted_identifier(os.getenv(name, default or ""), name)
+
+
+def unquoted_identifier(value: str, label: str = "value") -> str:
+    """Return a normalized Snowflake identifier or reject unsafe SQL text."""
+    value = value.strip()
     if not value or not IDENTIFIER.fullmatch(value):
-        raise RuntimeError(f"{name} must be an unquoted Snowflake identifier")
+        raise RuntimeError(f"{label} must be an unquoted Snowflake identifier")
     return value.upper()
 
 

@@ -1,0 +1,7 @@
+# Copy to ignored backend.hcl and replace placeholders with an existing,
+# access-controlled Azure Storage backend approved by the customer.
+resource_group_name  = "<terraform-state-resource-group>"
+storage_account_name = "<terraform-state-storage-account>"
+container_name       = "<terraform-state-container>"
+key                  = "fabric-snowflake-medallion-poc/private-endpoint.tfstate"
+use_azuread_auth     = true

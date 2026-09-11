@@ -24,11 +24,13 @@ Verify additionally:
 ## Private connectivity gate
 
 - [ ] Snowflake is hosted on Azure and the actual product edition is Business Critical or higher.
+- [ ] The effective account value of `PREVENT_UNLOAD_TO_INLINE_URL` is not `TRUE`, or the customer has stopped deployment pending a documented policy decision.
 - [ ] `SYSTEM$GET_PRIVATELINK_CONFIG()` is obtained by an approved administrator and never committed or logged.
 - [ ] The Azure private endpoint is created in the approved subnet and authorized in Snowflake.
 - [ ] The Snowflake account and OCSP hostnames resolve to private IPs from the gateway VNet.
 - [ ] TLS connectivity succeeds from the VNet, using SnowCD or another approved test.
 - [ ] `Microsoft.PowerPlatform` is registered and the dedicated gateway subnet is delegated only to `Microsoft.PowerPlatform/vnetaccesslinks`.
+- [ ] The gateway subnet is IPv4-only, uses no reserved subnet name, has five Azure-reserved addresses plus capacity for all gateway members and growth, and permits required intra-subnet/data-service traffic.
 - [ ] The Fabric VNet data gateway is online in the correct region/capacity and uses the intended VNet/subnet.
 - [ ] The Fabric connection reports `VirtualNetworkGateway`, the intended gateway ID, and the private Snowflake hostname.
 - [ ] Any public endpoint access matches the customer's Snowflake and Azure network policy.
@@ -84,5 +86,8 @@ git status --short
 - [ ] No `.env`, credentials, private keys, generated data, logs, IDs, or customer identities are tracked.
 - [ ] `docs/live-validation-results.md` contains sanitized evidence only.
 - [ ] Broken links and stale references are removed.
+- [ ] The owner has reviewed Git commit author names/email addresses and approved their public exposure or explicitly authorized a history rewrite.
 - [ ] Repository remains private until its owner explicitly approves publication.
+- [ ] After explicit publication approval, enable GitHub branch protection or a ruleset requiring the `test-and-scan` check before accepting changes.
+- [ ] Confirm GitHub native secret scanning is active and configure CodeQL/code scanning if available for the repository plan.
 - [ ] Cleanup dry-run contains only the dedicated schema and optional dedicated roles, never database/warehouse deletion.

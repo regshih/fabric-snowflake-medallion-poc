@@ -4,7 +4,7 @@ import pytest
 
 from snowflake_source.cleanup import cleanup_statements
 from snowflake_source.common import connection_parameters, identifier
-from snowflake_source.load import merge_file
+from snowflake_source.load import TABLE_COLUMNS, load_batch, merge_file
 from snowflake_source.setup import (
     render,
     require_existing_object,
@@ -145,11 +145,55 @@ class FakeCursor:
 
 def test_loader_uses_staging_merge_not_row_by_row_dml(tmp_path: Path):
     path = tmp_path / "DEVICES.csv"
-    path.write_text("DEVICE_ID,CUSTOMER_ID\nDEVICE-000001,CUST-000001\n", encoding="utf-8")
+    columns = TABLE_COLUMNS["DEVICES"]
+    values = ("DEVICE-000001", "CUST-000001", "", "", "", "", "", "", "", "", "initial")
+    path.write_text(
+        f"{','.join(columns)}\n{','.join(values)}\n",
+        encoding="utf-8",
+    )
     cursor = FakeCursor()
     assert merge_file(cursor, "POC_DB", "BANKING_SOURCE", "DEVICES", path) == 1
     combined = "\n".join(cursor.executed)
     assert "CREATE TEMPORARY TABLE STAGE_DEVICES_" in combined
     assert "MERGE INTO POC_DB.BANKING_SOURCE.DEVICES" in combined
     assert "UPDATE ALL BY NAME" in combined
-    assert cursor.rows == [("DEVICE-000001", "CUST-000001")]
+    assert cursor.rows == [tuple(None if value == "" else value for value in values)]
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        "DEVICE_ID,CUSTOMER_ID",  # incomplete
+        ",".join((*TABLE_COLUMNS["DEVICES"][:-1], "UNAPPROVED_COLUMN")),
+        ",".join(("DEVICE_ID", *TABLE_COLUMNS["DEVICES"][1:-1], "DEVICE_ID")),
+        ",".join((*TABLE_COLUMNS["DEVICES"][:-1], 'SOURCE_BATCH) VALUES (); DROP TABLE X; --')),
+    ],
+)
+def test_loader_rejects_modified_or_malicious_csv_headers(tmp_path: Path, header: str):
+    path = tmp_path / "DEVICES.csv"
+    path.write_text(f"{header}\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="approved DEVICES synthetic-data contract"):
+        merge_file(FakeCursor(), "POC_DB", "BANKING_SOURCE", "DEVICES", path)
+
+
+def test_batch_rejects_bad_header_before_connecting_to_snowflake(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    batch = tmp_path / "initial"
+    batch.mkdir()
+    (batch / "manifest.json").write_text(
+        '{"classification":"SYNTHETIC_TEST_DATA","batch":"initial"}\n',
+        encoding="utf-8",
+    )
+    (batch / "TRANSACTIONS.csv").write_text(
+        "TRANSACTION_ID,UNAPPROVED_COLUMN\nTXN-000000001,value\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SNOWFLAKE_DATABASE", "POC_DB")
+    monkeypatch.setenv("SNOWFLAKE_SCHEMA", "BANKING_SOURCE")
+    monkeypatch.setattr(
+        "snowflake_source.load.connect",
+        lambda: (_ for _ in ()).throw(AssertionError("Snowflake connection opened")),
+    )
+    with pytest.raises(ValueError, match="approved TRANSACTIONS synthetic-data contract"):
+        load_batch(tmp_path, "initial")

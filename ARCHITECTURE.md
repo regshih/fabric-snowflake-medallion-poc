@@ -69,6 +69,8 @@ Double blue lines represent physical replication. Solid green paths represent tr
 
 ## Why the mirror is Bronze
 
+The local CSV batches exist only to create deterministic synthetic source rows. They are generated under ignored `data/snowflake/<batch>/`, validated against a fixed header allowlist, and merged into the six managed tables in the dedicated Snowflake POC schema. Fabric reads those Snowflake tables through Mirroring; it does not ingest the CSV files.
+
 Fabric Mirroring already maintains the source-shaped Delta representation in OneLake. Creating an additional copy named `bronze_lh` would add latency, storage, and another failure surface without improving immutability or schema control. `silver_lh` is the first additional copy because it performs meaningful work:
 
 - normalizes Snowflake uppercase source names into an analytical naming contract;

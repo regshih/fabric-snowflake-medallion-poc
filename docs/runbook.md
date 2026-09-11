@@ -24,7 +24,8 @@ Record source counts and UTC time before the load. Watch Fabric replication unti
 | Symptom | Check |
 |---|---|
 | Snowflake login fails | Account identifier, user, authenticator, role, MFA/network policy, key path/passphrase |
-| Private connection fails | Private account/OCSP DNS, endpoint approval, Snowflake network policy, gateway status/region, exact warehouse/database/schema casing |
+| Private connection fails | Private account/OCSP DNS, TCP 443/80 flow, endpoint approval, Snowflake network policy, gateway status/region, exact warehouse/database/schema casing |
+| VNet-gateway mirror cannot start | Confirm Snowflake `PREVENT_UNLOAD_TO_INLINE_URL` is not `TRUE`; this setting currently blocks VNet/on-premises gateway mirroring |
 | No tables offered for mirroring | Managed-table type, mirror-role usage/select/create-stream grants, exact database/schema |
 | Mirror table is delayed | Replication monitor, inactive-table polling backoff, Snowflake warehouse availability |
 | Mirror unexpectedly performs initial copy | Recent DDL, stop/start, long capacity pause, schema-management tools |

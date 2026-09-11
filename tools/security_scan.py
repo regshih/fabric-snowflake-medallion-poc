@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import argparse
 import re
-import subprocess
+import shutil
+import subprocess  # nosec B404 - scanner invokes git with argument arrays and shell disabled
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SELF = Path(__file__).resolve()
 DOCUMENTED_EXAMPLE = (ROOT / "SECURITY.md").resolve()
+GIT_EXE = shutil.which("git")
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".pyc"}
 PATTERNS = {
     "azure-storage-key": re.compile(r"AccountKey=[A-Za-z0-9+/]{32,}={0,2}", re.IGNORECASE),
@@ -24,13 +26,33 @@ PATTERNS = {
         re.IGNORECASE,
     ),
     "literal-bearer": re.compile(r"Authorization\s*[:=]\s*[\"']Bearer\s+[A-Za-z0-9._~+/-]{16,}", re.IGNORECASE),
+    "live-environment-guid": re.compile(
+        r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b",
+        re.IGNORECASE,
+    ),
+    "snowflake-snowsight-account-url": re.compile(
+        r"https://app\.snowflake\.com/[a-z0-9_-]+/[a-z0-9_-]+(?:/|\b)", re.IGNORECASE
+    ),
+    "snowflake-account-host": re.compile(
+        r"\b[a-z0-9_-]+(?:\.[a-z0-9_-]+)*\.(?:privatelink\.)?snowflakecomputing\.(?:com|cn)\b",
+        re.IGNORECASE,
+    ),
 }
-SAFE_TEST_LITERALS = {"github_pat_synthetic_test_value"}
+SAFE_TEST_LITERALS = {
+    "github_pat_synthetic_test_value",
+    "Org-Account.snowflakecomputing.com",
+    "Org-Account.privatelink.snowflakecomputing.com",
+    "org-account.snowflakecomputing.com",
+    "org-account.privatelink.snowflakecomputing.com",
+    "acme-demo.snowflakecomputing.com",
+}
 
 
 def git(*args: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(ROOT), *args],
+    if not GIT_EXE:
+        raise RuntimeError("git executable was not found on PATH")
+    result = subprocess.run(  # nosec B603 - fixed executable and argument list; no shell
+        [GIT_EXE, "-C", str(ROOT), *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -74,6 +96,8 @@ def scan_working_tree() -> list[str]:
 
 
 def scan_history() -> list[str]:
+    if not GIT_EXE:
+        raise RuntimeError("git executable was not found on PATH")
     commits = [value for value in git("rev-list", "--all").splitlines() if value]
     findings: list[str] = []
     for commit in commits:
@@ -81,8 +105,8 @@ def scan_history() -> list[str]:
             path = ROOT / name
             if path.suffix.lower() in SKIP_SUFFIXES or name in {"tools/security_scan.py", "SECURITY.md"}:
                 continue
-            result = subprocess.run(
-                ["git", "-C", str(ROOT), "show", f"{commit}:{name}"],
+            result = subprocess.run(  # nosec B603 - fixed executable and argument list; no shell
+                [GIT_EXE, "-C", str(ROOT), "show", f"{commit}:{name}"],
                 capture_output=True,
                 check=False,
             )

@@ -4,13 +4,17 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 @description('Existing subnet resource ID for the Snowflake private endpoint. Do not use the Fabric gateway subnet.')
+@minLength(1)
 param privateEndpointSubnetId string
 
 @secure()
 @description('The Snowflake privatelink-pls-id alias returned by SYSTEM$GET_PRIVATELINK_CONFIG(), or the full Private Link service resource ID supplied by Snowflake Support.')
+@minLength(1)
 param snowflakePrivateLinkServiceAliasOrResourceId string
 
 @description('Name for the dedicated Snowflake private endpoint.')
+@minLength(2)
+@maxLength(64)
 param privateEndpointName string = 'pe-snowflake-fabric-poc'
 
 @description('Create a dedicated subnet delegated to Microsoft.PowerPlatform/vnetaccesslinks for a Fabric VNet data gateway.')
@@ -20,6 +24,8 @@ param createFabricGatewaySubnet bool = false
 param virtualNetworkName string = ''
 
 @description('Name of the optional dedicated Fabric VNet data gateway subnet.')
+@minLength(1)
+@maxLength(80)
 param fabricGatewaySubnetName string = 'snet-fabric-vnet-gateway'
 
 @description('Address prefixes for the optional gateway subnet. Supply at least one CIDR when createFabricGatewaySubnet is true.')

@@ -42,7 +42,8 @@ DESCRIPTIONS = {
     "nb_pipeline_log": "Writes idempotent success and failure stage records for the Snowflake medallion pipeline run.",
 }
 
-assert all(len(value) <= 256 for value in DESCRIPTIONS.values())
+if not all(len(value) <= 256 for value in DESCRIPTIONS.values()):
+    raise RuntimeError("Fabric catalog descriptions must not exceed 256 characters")
 
 
 def planned_updates(items: list[dict], force: bool = False) -> list[tuple[str, str]]:

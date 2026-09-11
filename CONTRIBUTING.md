@@ -16,7 +16,9 @@ Contributions are welcome through an issue or pull request.
    python -m compileall -q generators snowflake_source validation infra tools
    python tools\security_scan.py --working-tree --git-history
    terraform fmt -check -recursive infra\azure
+   terraform -chdir=infra\azure\snowflake-private-endpoint init -backend=false
    terraform -chdir=infra\azure\snowflake-private-endpoint validate
+   az bicep build --file infra\azure\snowflake-private-endpoint-bicep\main.bicep --stdout | Out-Null
    ```
 
 5. Update documentation and evidence status. Local tests must never be presented as a live deployment result.

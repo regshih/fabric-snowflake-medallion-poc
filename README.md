@@ -30,6 +30,8 @@ gold_wh / T-SQL       Direct Lake-ready consumption
 
 Bronze is the mirrored database itself. A second physical Bronze Lakehouse would add cost without adding a meaningful contract. See [Architecture](ARCHITECTURE.md) and [Snowflake mirroring behavior](docs/snowflake-fabric-mirroring.md).
 
+CSV is used only to seed synthetic POC data: the generator writes ignored local batch files, the guarded loader validates their exact per-table headers and merges them into the dedicated Snowflake schema, and Fabric then mirrors the Snowflake managed tables. CSV is not the Fabric ingestion mechanism, and no generated CSV is committed.
+
 ## Evidence status
 
 | Area | Evidence in this repository |
@@ -69,6 +71,7 @@ The sanitized reference run used an explicitly configured direct cloud connectio
 - an existing Fabric capacity and permission to create a dedicated workspace;
 - an existing Snowflake account hosted on Azure, an approved existing database, and an approved existing virtual warehouse;
 - Snowflake Business Critical Edition or higher when Azure Private Link is required;
+- Snowflake `PREVENT_UNLOAD_TO_INLINE_URL` compatible with Fabric's current VNet-gateway mirroring requirements;
 - customer-approved Azure VNet, private DNS, private-endpoint subnet, and dedicated Fabric VNet data gateway subnet.
 
 This repository never creates or drops the customer's Snowflake account, database, or warehouse.
@@ -110,7 +113,7 @@ Read [SECURITY.md](SECURITY.md) before deployment. Repository visibility must re
 - [Deployment](docs/deployment.md)
 - [Snowflake-to-Fabric mirroring](docs/snowflake-fabric-mirroring.md)
 - [Runbook, cost, and cleanup](docs/runbook.md)
-- [Validation checklist](docs/validation.md)
+- [Validation and publication checklist](docs/validation.md)
 - [Live validation results](docs/live-validation-results.md)
 - [Governance and security](docs/governance-security.md)
 - [Known limitations](docs/known-limitations.md)

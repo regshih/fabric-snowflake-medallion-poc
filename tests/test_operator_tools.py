@@ -46,3 +46,14 @@ def test_secret_scanner_detects_encrypted_keys_and_modern_github_tokens() -> Non
     findings = scan_text("fixture", f"{encrypted_key}\n{fine_grained_pat}")
     assert any("private-key" in finding for finding in findings)
     assert any("github-token" in finding for finding in findings)
+
+
+def test_secret_scanner_detects_environment_inventory() -> None:
+    separator = chr(45)
+    guid = separator.join(("12345678", "1234", "4123", "8123", "123456789abc"))
+    snowsight = "https://app." + "snowflake.com/example-org/example-account/"
+    host = "example-org-example-account.privatelink." + "snowflakecomputing.com"
+    findings = scan_text("fixture", f"{guid}\n{snowsight}\n{host}")
+    assert any("live-environment-guid" in finding for finding in findings)
+    assert any("snowflake-snowsight-account-url" in finding for finding in findings)
+    assert any("snowflake-account-host" in finding for finding in findings)

@@ -44,6 +44,7 @@ terraform.tfstate*
 .terraform/
 *.bicepparam
 /infra/azure/snowflake-private-endpoint-bicep/main.json
+/infra/azure/snowflake-private-endpoint/backend.hcl
 
 # IDE / OS
 .vscode/

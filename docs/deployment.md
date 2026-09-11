@@ -8,6 +8,7 @@ This sequence assumes the customer already operates Snowflake on Microsoft Azure
 - an active existing Fabric capacity and permission to create a dedicated workspace;
 - Snowflake on Azure, an approved existing database/warehouse, and permission to create one dedicated POC schema and roles;
 - Snowflake Business Critical Edition or higher for Azure Private Link;
+- Snowflake account parameter `PREVENT_UNLOAD_TO_INLINE_URL` not set to `TRUE`, because that setting currently blocks Fabric mirroring through VNet and on-premises gateways;
 - Azure networking, Snowflake, DNS, Fabric, and security owners identified;
 - workspace Contributor/Admin and permission to create or use a Fabric VNet data gateway.
 
@@ -17,11 +18,13 @@ This sequence assumes the customer already operates Snowflake on Microsoft Azure
 
 1. In an approved Snowflake administrator session, run `SELECT SYSTEM$GET_PRIVATELINK_CONFIG();`. Only `ACCOUNTADMIN` can obtain this account-level configuration. Treat the complete result as private environment inventory.
 2. Give the `privatelink-pls-id` value to the Azure network deployment through an ignored variable or secret workflow. Choose either the optional [Terraform root](../infra/azure/snowflake-private-endpoint/README.md) or the equivalent [Azure-native Bicep deployment](../infra/azure/snowflake-private-endpoint-bicep/README.md). Each creates the Azure private endpoint and, when authorized, a separate Fabric-gateway subnet.
-3. Review Terraform `plan` or Azure deployment `what-if` output through the customer's approved change-management process, then deploy only the approved changes. Do not commit state, plan files, generated ARM JSON, deployment output, or real variables.
+3. For Terraform, configure the enforced Azure Storage backend from ignored `backend.hcl`, then review `plan`. For Bicep, review Azure deployment `what-if`. Use the customer's approved change-management process and deploy only approved changes. Do not commit state, backend configuration, plan files, generated ARM JSON, deployment output, or real variables.
 4. Have the Snowflake administrator authorize the Azure private endpoint using a narrowly scoped Azure token obtained outside IaC. Do not store the token in Terraform state, Bicep parameters, Azure deployment history, Git, command history, or logs.
-5. Configure private DNS for both the Snowflake account hostname and OCSP hostname returned by Snowflake. Validate resolution and TLS connectivity from the VNet with the customer's approved tools, including SnowCD where available.
+5. Configure private DNS for both the Snowflake account hostname and OCSP hostname returned by Snowflake. Permit the Snowflake-documented TCP 443 and 80 flows, then validate resolution and TLS connectivity from the VNet with the customer's approved tools, including SnowCD where available.
 
-The private endpoint subnet and Fabric gateway subnet are different subnets. The gateway subnet must be dedicated and delegated to `Microsoft.PowerPlatform/vnetaccesslinks`. Register the `Microsoft.PowerPlatform` resource provider before gateway creation.
+The private endpoint must be in the same Azure subscription and region as its VNet. The private endpoint subnet and Fabric gateway subnet are different subnets. The gateway subnet must be new, IPv4-only, dedicated, and delegated to `Microsoft.PowerPlatform/vnetaccesslinks`; do not use the reserved names `GatewaySubnet` or `AzureBastionSubnet`. Size it for five Azure-reserved addresses plus every planned gateway member and growth, and do not block intra-subnet or required data-service traffic. Confirm `Microsoft.Network` is registered and register `Microsoft.PowerPlatform` before gateway creation; the focused IaC does not auto-register resource providers.
+
+Before creating the Fabric connection, have the Snowflake administrator run `SHOW PARAMETERS LIKE 'PREVENT_UNLOAD_TO_INLINE_URL' IN ACCOUNT`. If the effective value is `TRUE`, stop and resolve the security-policy conflict with the customer: Fabric currently cannot mirror Snowflake through a VNet data gateway with that setting enabled. Do not silently weaken the account policy.
 
 ## 3. Create the Fabric VNet data gateway
 
@@ -74,6 +77,8 @@ python validation\validate_snowflake.py --mode live
 ```
 
 Generated data is ignored. Loading uses session-scoped staging tables and keyed `MERGE` operations so retries are safe.
+
+The generated CSV files are a local, synthetic interchange format only. They are written beneath ignored `data/snowflake/<batch>/`, validated against exact per-table header contracts, loaded into the dedicated POC schema, and never used as the Fabric ingestion path. Fabric mirrors the resulting Snowflake managed tables directly.
 
 ## 7. Create the private Fabric Snowflake connection
 

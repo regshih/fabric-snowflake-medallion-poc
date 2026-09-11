@@ -29,6 +29,14 @@ def test_examples_contain_placeholders_only():
     assert "SYSTEM$GET_PRIVATELINK_CONFIG" in (IAC / "README.md").read_text(encoding="utf-8")
 
 
+def test_terraform_enforces_remote_azure_backend_with_placeholder_example():
+    versions = (IAC / "versions.tf").read_text(encoding="utf-8")
+    backend = (IAC / "backend.hcl.example").read_text(encoding="utf-8")
+    assert 'backend "azurerm" {}' in versions
+    assert "use_azuread_auth     = true" in backend
+    assert "<terraform-state-storage-account>" in backend
+
+
 def test_bicep_uses_manual_snowflake_connection_and_fabric_delegation():
     main = (BICEP_IAC / "main.bicep").read_text(encoding="utf-8")
     assert "Microsoft.Network/privateEndpoints@2024-07-01" in main
