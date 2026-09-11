@@ -57,6 +57,7 @@ The repository deliberately distinguishes local implementation from deployed inf
 |---|---|
 | `generators/` | Deterministic synthetic CSV generation |
 | `snowflake_source/` | Snowflake DDL/grants, connection helper, loader, and guarded cleanup |
+| `infra/snowflake/account-bootstrap/` | Optional Terraform account creation from an existing Snowflake organization |
 | `infra/fabric/` | Fabric REST workspace, items, Snowflake mirror, Git integration, and capacity controls |
 | `infra/governance/` | Catalog descriptions/search, domain assignment, and OneLake access tooling |
 | `notebooks/` | Source validation, Silver, Gold, Warehouse, reconciliation, audit, and demo notebooks |
@@ -68,7 +69,7 @@ The repository deliberately distinguishes local implementation from deployed inf
 
 ## Quick start
 
-Prerequisites are Python 3.11+, Azure CLI, PowerShell 7+ where used, an existing Fabric capacity, and a Snowflake account hosted on Azure.
+Prerequisites are Python 3.11+, Azure CLI, PowerShell 7+ where used, an existing Fabric capacity, and a Snowflake account hosted on Azure. Organizations with an existing Snowflake `ORGADMIN` account can create a dedicated Azure West US 2 account through the optional [Terraform bootstrap module](infra/snowflake/account-bootstrap/README.md).
 
 ```powershell
 python -m venv .venv

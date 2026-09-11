@@ -22,3 +22,9 @@ jobs:
       - run: python -m pip install -r requirements.txt
       - run: python -m pytest -q
       - run: python tools/security_scan.py --working-tree --git-history
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.0"
+      - run: terraform fmt -check -recursive infra/snowflake
+      - run: terraform -chdir=infra/snowflake/account-bootstrap init -backend=false
+      - run: terraform -chdir=infra/snowflake/account-bootstrap validate

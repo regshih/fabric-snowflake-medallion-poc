@@ -14,6 +14,12 @@ This sequence proves each boundary before downstream Fabric items are deployed. 
 
 Review Snowflake network policy and decide between direct connectivity and a Fabric VNet/on-premises data gateway before creating the Fabric connection.
 
+### Optional account bootstrap
+
+If the organization already has a Snowflake account and a user that can assume `ORGADMIN`, the optional [`infra/snowflake/account-bootstrap`](../infra/snowflake/account-bootstrap/README.md) Terraform module creates a dedicated Standard-edition account in Snowflake's `AZURE_WESTUS2` region. It provisions the new administrator with an RSA public key and protects the account with Terraform `prevent_destroy`.
+
+This module cannot create an organization's first Snowflake account. Initial account enrollment requires Snowflake signup or a commercial agreement. The Microsoft Marketplace Snowflake offer is intentionally not automated here: its currently active public plans are commercial annual/multi-year offers that require legal and cost review, followed by publisher activation. An Azure Marketplace `Microsoft.SaaS/resources` deployment by itself does not create a usable Snowflake account.
+
 ## 2. Local installation and validation
 
 ```powershell
