@@ -6,7 +6,11 @@ import argparse
 import csv
 import json
 import re
+import sys
 from pathlib import Path
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 TABLE_KEYS = {
     "TRANSACTIONS": "TRANSACTION_ID",

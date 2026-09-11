@@ -41,6 +41,8 @@ def test_setup_render_is_idempotent_and_has_least_privilege_grants(monkeypatch):
     assert "CREATE DATABASE IF NOT EXISTS POC_DB" in sql
     assert "CREATE STREAM ON SCHEMA POC_DB.SOURCE_SCHEMA" in sql
     assert "SELECT ON ALL TABLES" in sql
+    assert sql.count("SET CHANGE_TRACKING = TRUE") == 6
+    assert "MODIFY ON" not in sql
     assert "{{" not in sql
     assert len(statements(sql)) >= 20
 

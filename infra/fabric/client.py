@@ -59,6 +59,7 @@ class FabricClient:
         poll_interval: float = 5,
         lro_timeout: float = 1800,
         job_timeout: float = 43200,
+        request_retries: int = 3,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
         epoch: Callable[[], float] = time.time,
@@ -70,6 +71,7 @@ class FabricClient:
         self.poll_interval = poll_interval
         self.lro_timeout = lro_timeout
         self.job_timeout = job_timeout
+        self.request_retries = max(0, request_retries)
         self._sleep = sleep
         self._monotonic = monotonic
         self._epoch = epoch
@@ -93,7 +95,18 @@ class FabricClient:
     def request(self, method: str, path_or_url: str, **kwargs: Any) -> requests.Response:
         self._authorize()
         kwargs.setdefault("timeout", self.request_timeout)
-        response = self.session.request(method, self.url(path_or_url), **kwargs)
+        # Reads and LRO polls are safe to retry after intermittent TLS resets.
+        # Mutation retries stay with idempotent higher-level ensure operations so
+        # an ambiguous POST response cannot accidentally create duplicates.
+        attempts = self.request_retries + 1 if method.upper() in {"GET", "HEAD", "OPTIONS"} else 1
+        for attempt in range(attempts):
+            try:
+                response = self.session.request(method, self.url(path_or_url), **kwargs)
+                break
+            except (requests.ConnectionError, requests.Timeout):
+                if attempt + 1 == attempts:
+                    raise
+                self._sleep(min(2**attempt, 8))
         if response.status_code == 401:
             self._authorize(force=True)
             response = self.session.request(method, self.url(path_or_url), **kwargs)

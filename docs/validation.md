@@ -27,6 +27,7 @@ Verify additionally:
 - [ ] Warehouse is X-Small/approved size, auto-resume enabled, and auto-suspend configured.
 - [ ] The database/schema contain exactly the intended POC objects.
 - [ ] All six objects are permanent managed tables.
+- [ ] Change tracking is enabled on all six tables by the setup role; the mirror role is not granted `MODIFY`.
 - [ ] `validation/validate_snowflake.py --mode live` returns positive counts.
 - [ ] Alert-to-transaction join returns expected synthetic matches.
 - [ ] Loader role cannot access unrelated databases.

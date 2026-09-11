@@ -13,7 +13,7 @@ ALTER COLUMN CustomerID ADD MASKED WITH (FUNCTION = 'partial(5,"******",2)');
 GO
 
 ALTER TABLE dbo._base_DimDevice
-ALTER COLUMN deviceFingerprint ADD MASKED WITH (FUNCTION = 'partial(3,"********",3)');
+ALTER COLUMN DeviceFingerprint ADD MASKED WITH (FUNCTION = 'partial(3,"********",3)');
 GO
 
 IF OBJECT_ID(N'Security.RiskInvestigatorPrincipal', N'U') IS NULL

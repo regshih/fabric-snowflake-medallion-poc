@@ -67,7 +67,15 @@ Generated data is ignored. Loading is idempotent: each CSV is inserted into a se
 
 ## 5. Create the Fabric Snowflake connection
 
-In Fabric **Manage connections and gateways**, create the Snowflake connection using the exact case-sensitive server, warehouse, database, and schema identifiers.
+Create the cloud connection through the idempotent helper after setting the local key-pair variables documented in `.env.example`:
+
+```powershell
+python -m infra.fabric.snowflake_connection
+```
+
+The helper sends the encrypted PKCS#8 key to Fabric over TLS for its live connection test. It never prints the key or passphrase. Put only the returned connection GUID in ignored `.env` as `FABRIC_SNOWFLAKE_CONNECTION_ID`.
+
+Alternatively, create the connection in Fabric **Manage connections and gateways** using the exact case-sensitive server and warehouse identifiers.
 
 Supported choices for this POC:
 
@@ -75,7 +83,7 @@ Supported choices for this POC:
 - RSA key pair for a separately managed service account;
 - Snowflake native username/password only when the credential is stored in Fabric and never exported to Git.
 
-Select the VNet or on-premises gateway if the Snowflake endpoint is private. Test the connection, then put only the Fabric connection GUID in ignored `.env` as `FABRIC_SNOWFLAKE_CONNECTION_ID`.
+Select the VNet or on-premises gateway if the Snowflake endpoint is private. Cloud-connection credentials are sent directly to the Fabric Connections API; gateway credential wrapping is a separate flow for on-premises gateways.
 
 ## 6. Create workspace and source mirror
 
@@ -105,9 +113,9 @@ The second command starts billable Fabric/Snowflake work. Capture its run ID in 
 Inspect the generated Warehouse contract, then apply the reviewed SQL:
 
 ```powershell
-python tools\fabric_sql.py warehouse\00_refresh_gold_serving.sql
-python tools\fabric_sql.py warehouse\10_apply_security.sql
-python tools\fabric_sql.py warehouse\20_validate_security.sql
+python tools\fabric_sql.py --server $env:FABRIC_SQL_ENDPOINT --database $env:FABRIC_WAREHOUSE_NAME --file warehouse\00_refresh_gold_serving.sql
+python tools\fabric_sql.py --server $env:FABRIC_SQL_ENDPOINT --database $env:FABRIC_WAREHOUSE_NAME --file warehouse\10_apply_security.sql
+python tools\fabric_sql.py --server $env:FABRIC_SQL_ENDPOINT --database $env:FABRIC_WAREHOUSE_NAME --file warehouse\20_validate_security.sql
 python -m infra.governance.catalog_setup
 python -m infra.governance.catalog_setup --apply
 python -m infra.governance.catalog_search --search snowflake

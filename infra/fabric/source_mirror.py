@@ -8,6 +8,7 @@ import os
 import time
 import uuid
 
+import requests
 from dotenv import load_dotenv
 
 from infra.fabric.client import FabricApiError, FabricClient
@@ -129,8 +130,18 @@ def ensure_snowflake(client: FabricClient, workspace_id: str) -> dict:
     status_path = f"{path}/{existing['id']}"
     status = client.request("POST", f"{status_path}/getMirroringStatus", json={}).json()
     if status.get("status") not in {"Running", "Starting"}:
-        response = client.request("POST", f"{status_path}/startMirroring", json={})
-        client.wait_for_operation(response)
+        # A newly created mirrored database can be visible a few seconds before
+        # its backing artifact is ready to start. Fabric reports that short
+        # propagation window as HTTP 400, so retry only that response.
+        for attempt in range(12):
+            try:
+                response = client.request("POST", f"{status_path}/startMirroring", json={})
+                client.wait_for_operation(response)
+                break
+            except requests.HTTPError as exc:
+                if exc.response is None or exc.response.status_code != 400 or attempt == 11:
+                    raise
+                time.sleep(5)
     return existing
 
 

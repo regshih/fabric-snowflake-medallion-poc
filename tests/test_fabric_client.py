@@ -52,6 +52,15 @@ class Session:
         return self.responses.pop(0)
 
 
+class FlakySession(Session):
+    def request(self, method: str, url: str, **kwargs):
+        self.calls.append((method, url, kwargs))
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+
 class Clock:
     def __init__(self):
         self.now = 0.0
@@ -84,6 +93,18 @@ def test_request_refreshes_token_once_after_401():
     assert credential.calls == 2
     assert session.headers["Authorization"].endswith("token-2")
     assert len(session.calls) == 2
+
+
+def test_request_retries_safe_read_after_transport_reset():
+    clock = Clock()
+    session = FlakySession([requests.ConnectionError("reset"), Response(200, {"ok": True})])
+    api = FabricClient(
+        Credential(), session=session, sleep=clock.sleep, monotonic=lambda: clock.now,
+        epoch=lambda: 0, request_retries=2,
+    )
+    assert api.request("GET", "workspaces").json() == {"ok": True}
+    assert len(session.calls) == 2
+    assert clock.now == 1
 
 
 def test_list_all_follows_continuation_uri_and_token():
