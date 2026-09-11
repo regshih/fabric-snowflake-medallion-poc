@@ -1,4 +1,4 @@
-azure-identity>=1.24,<2
+azure-identity>=1.25.3,<2
 cryptography>=50.0,<51
 ms-fabric-cli>=1.2,<2
 pip-audit>=2.10,<3
