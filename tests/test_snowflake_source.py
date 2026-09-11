@@ -25,6 +25,15 @@ def test_external_browser_connection_has_no_secret(monkeypatch):
     assert "private_key" not in " ".join(params)
 
 
+def test_bootstrap_connection_omits_not_yet_created_context(monkeypatch):
+    monkeypatch.setenv("SNOWFLAKE_ACCOUNT", "example-org-account")
+    monkeypatch.setenv("SNOWFLAKE_USER", "poc_user")
+    params = connection_parameters("SNOWFLAKE_SETUP_ROLE", include_context=False)
+    assert "warehouse" not in params
+    assert "database" not in params
+    assert "schema" not in params
+
+
 def test_setup_render_is_idempotent_and_has_least_privilege_grants(monkeypatch):
     monkeypatch.setenv("SNOWFLAKE_DATABASE", "poc_db")
     monkeypatch.setenv("SNOWFLAKE_SCHEMA", "source_schema")

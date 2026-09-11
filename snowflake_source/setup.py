@@ -39,7 +39,9 @@ def main() -> None:
     if not args.apply:
         print(sql)
         return
-    with connect("SNOWFLAKE_SETUP_ROLE") as connection:
+    # The database, schema, and warehouse do not exist on the first run, so
+    # authenticate without asking the connector to establish that context.
+    with connect("SNOWFLAKE_SETUP_ROLE", include_context=False) as connection:
         with connection.cursor() as cursor:
             for statement in statements(sql):
                 cursor.execute(statement)

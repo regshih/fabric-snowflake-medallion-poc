@@ -24,7 +24,9 @@ def identifier(name: str, default: str | None = None) -> str:
     return value.upper()
 
 
-def connection_parameters(role_variable: str = "SNOWFLAKE_ROLE") -> dict[str, Any]:
+def connection_parameters(
+    role_variable: str = "SNOWFLAKE_ROLE", *, include_context: bool = True
+) -> dict[str, Any]:
     """Build connector settings without logging credential material."""
     load_dotenv()
     authenticator = os.getenv("SNOWFLAKE_AUTHENTICATOR", "externalbrowser").strip()
@@ -32,13 +34,18 @@ def connection_parameters(role_variable: str = "SNOWFLAKE_ROLE") -> dict[str, An
         "account": required("SNOWFLAKE_ACCOUNT"),
         "user": required("SNOWFLAKE_USER"),
         "authenticator": authenticator,
-        "warehouse": identifier("SNOWFLAKE_WAREHOUSE", "FABRIC_POC_WH"),
-        "database": identifier("SNOWFLAKE_DATABASE", "FABRIC_SNOWFLAKE_POC"),
-        "schema": identifier("SNOWFLAKE_SCHEMA", "BANKING_SOURCE"),
         "session_parameters": {"QUERY_TAG": "fabric-snowflake-medallion-poc"},
         "login_timeout": 30,
         "network_timeout": 120,
     }
+    if include_context:
+        params.update(
+            {
+                "warehouse": identifier("SNOWFLAKE_WAREHOUSE", "FABRIC_POC_WH"),
+                "database": identifier("SNOWFLAKE_DATABASE", "FABRIC_SNOWFLAKE_POC"),
+                "schema": identifier("SNOWFLAKE_SCHEMA", "BANKING_SOURCE"),
+            }
+        )
     role = os.getenv(role_variable, "").strip()
     if role:
         params["role"] = identifier(role_variable)
@@ -52,7 +59,9 @@ def connection_parameters(role_variable: str = "SNOWFLAKE_ROLE") -> dict[str, An
     return params
 
 
-def connect(role_variable: str = "SNOWFLAKE_ROLE"):
+def connect(role_variable: str = "SNOWFLAKE_ROLE", *, include_context: bool = True):
     import snowflake.connector
 
-    return snowflake.connector.connect(**connection_parameters(role_variable))
+    return snowflake.connector.connect(
+        **connection_parameters(role_variable, include_context=include_context)
+    )
